@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -36,14 +40,11 @@ static char sccsid[] = "@(#)vfscanf.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdio/vfwscanf.c,v 1.17 2009/01/19 06:19:51 das Exp $");
-
-#include "xlocale_private.h"
+__FBSDID("$FreeBSD: src/lib/libc/stdio/vfwscanf.c,v 1.12 2004/05/02 20:13:29 obrien Exp $");
 
 #include "namespace.h"
 #include <ctype.h>
 #include <inttypes.h>
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -97,15 +98,13 @@ __FBSDID("$FreeBSD: src/lib/libc/stdio/vfwscanf.c,v 1.17 2009/01/19 06:19:51 das
 #define	CT_INT		3	/* %[dioupxX] conversion */
 #define	CT_FLOAT	4	/* %[efgEFG] conversion */
 
-#ifndef NO_FLOATING_POINT
-static int parsefloat(FILE *, wchar_t **, size_t, locale_t loc);
-#endif
+static int parsefloat(FILE *, wchar_t *, wchar_t *);
+
+extern int __scanfdebug;
 
 #define	INCCL(_c)	\
 	(cclcompl ? (wmemchr(ccls, (_c), ccle - ccls) == NULL) : \
 	(wmemchr(ccls, (_c), ccle - ccls) != NULL))
-
-static const mbstate_t initial_mbs;
 
 /*
  * MT-safe version.
@@ -117,21 +116,7 @@ vfwscanf(FILE * __restrict fp, const wchar_t * __restrict fmt, va_list ap)
 
 	FLOCKFILE(fp);
 	ORIENT(fp, 1);
-	ret = __vfwscanf(fp, __current_locale(), fmt, ap);
-	FUNLOCKFILE(fp);
-	return (ret);
-}
-
-int
-vfwscanf_l(FILE * __restrict fp, locale_t loc, const wchar_t * __restrict fmt,
-    va_list ap)
-{
-	int ret;
-
-	NORMALIZE_LOCALE(loc);
-	FLOCKFILE(fp);
-	ORIENT(fp, 1);
-	ret = __vfwscanf(fp, loc, fmt, ap);
+	ret = __vfwscanf(fp, fmt, ap);
 	FUNLOCKFILE(fp);
 	return (ret);
 }
@@ -139,9 +124,8 @@ vfwscanf_l(FILE * __restrict fp, locale_t loc, const wchar_t * __restrict fmt,
 /*
  * Non-MT-safe version.
  */
-__private_extern__ int
-__vfwscanf(FILE * __restrict fp, locale_t loc, const wchar_t * __restrict fmt,
-    va_list ap)
+int
+__vfwscanf(FILE * __restrict fp, const wchar_t * __restrict fmt, va_list ap)
 {
 	wint_t c;		/* character from format, or conversion */
 	size_t width;		/* field width, or 0 */
@@ -150,6 +134,7 @@ __vfwscanf(FILE * __restrict fp, locale_t loc, const wchar_t * __restrict fmt,
 	int flags;		/* flags as defined above */
 	wchar_t *p0;		/* saves original value of p when necessary */
 	int nassigned;		/* number of fields assigned */
+	int nconversions;	/* number of conversions */
 	int nread;		/* number of characters consumed from fp */
 	int base;		/* base argument to conversion function */
 	wchar_t buf[BUF];	/* buffer for numeric conversions */
@@ -160,36 +145,31 @@ __vfwscanf(FILE * __restrict fp, locale_t loc, const wchar_t * __restrict fmt,
 	char *mbp;		/* multibyte string pointer for %c %s %[ */
 	size_t nconv;		/* number of bytes in mb. conversion */
 	char mbbuf[MB_LEN_MAX];	/* temporary mb. character buffer */
-	int index;		/* for %index$ */
-	va_list ap_orig;	/* to reset ap to first argument */
+	static const mbstate_t initial;
 	mbstate_t mbs;
-	int mb_cur_max = MB_CUR_MAX_L(loc);
 
 	/* `basefix' is used to avoid `if' tests in the integer scanner */
 	static short basefix[17] =
 		{ 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
 
 	nassigned = 0;
+	nconversions = 0;
 	nread = 0;
 	ccls = ccle = NULL;
-	va_copy(ap_orig, ap);
 	for (;;) {
 		c = *fmt++;
 		if (c == 0)
 			return (nassigned);
-		if (iswspace_l(c, loc)) {
-			while ((c = __fgetwc(fp, loc)) != WEOF &&
-			    iswspace_l(c, loc))
+		if (iswspace(c)) {
+			while ((c = __fgetwc(fp)) != WEOF &&
+			    iswspace(c))
 				;
 			if (c != WEOF)
-				__ungetwc(c, fp, loc);
+				__ungetwc(c, fp);
 			continue;
 		}
-		if (c != '%') {
-			if ((wi = __fgetwc(fp, loc)) == WEOF)
-				goto input_failure;
+		if (c != '%')
 			goto literal;
-		}
 		width = 0;
 		flags = 0;
 		/*
@@ -199,34 +179,16 @@ __vfwscanf(FILE * __restrict fp, locale_t loc, const wchar_t * __restrict fmt,
 again:		c = *fmt++;
 		switch (c) {
 		case '%':
-		/* Consume leading white space */
-			for(;;) {
-				if ((wi = __fgetwc(fp, loc)) == WEOF)
-					goto input_failure;
-				if (!iswspace_l(wi, loc))
-					break;
-				nread++;
-			}
 literal:
+			if ((wi = __fgetwc(fp)) == WEOF)
+				goto input_failure;
 			if (wi != c) {
-				__ungetwc(wi, fp, loc);
-				goto match_failure;
+				__ungetwc(wi, fp);
+				goto input_failure;
 			}
 			nread++;
 			continue;
 
-		case '$':
-			index = width;
-			if (index < 1 || index > NL_ARGMAX || fmt[-3] != '%') {
-				goto input_failure;
-			}
-			width = 0;
-			va_end(ap);
-			va_copy(ap, ap_orig); /* reset to %1$ */
-			for (; index > 1; index--) {
-				va_arg(ap, void*);
-			}
-			goto again;
 		case '*':
 			flags |= SUPPRESS;
 			goto again;
@@ -345,28 +307,27 @@ literal:
 			break;
 
 		case 'n':
-		{
-			void *ptr = va_arg(ap, void *);
-			if ((ptr == NULL) || (flags & SUPPRESS))	/* ??? */
+			nconversions++;
+			if (flags & SUPPRESS)	/* ??? */
 				continue;
-			else if (flags & SHORTSHORT)
-				*(char *)ptr = nread;
+			if (flags & SHORTSHORT)
+				*va_arg(ap, char *) = nread;
 			else if (flags & SHORT)
-				*(short *)ptr = nread;
+				*va_arg(ap, short *) = nread;
 			else if (flags & LONG)
-				*(long *)ptr = nread;
+				*va_arg(ap, long *) = nread;
 			else if (flags & LONGLONG)
-				*(long long *)ptr = nread;
+				*va_arg(ap, long long *) = nread;
 			else if (flags & INTMAXT)
-				*(intmax_t *)ptr = nread;
+				*va_arg(ap, intmax_t *) = nread;
 			else if (flags & SIZET)
-				*(size_t *)ptr = nread;
+				*va_arg(ap, size_t *) = nread;
 			else if (flags & PTRDIFFT)
-				*(ptrdiff_t *)ptr = nread;
+				*va_arg(ap, ptrdiff_t *) = nread;
 			else
-				*(int *)ptr = nread;
+				*va_arg(ap, int *) = nread;
 			continue;
-		}
+
 		default:
 			goto match_failure;
 
@@ -382,11 +343,11 @@ literal:
 		 * that suppress this.
 		 */
 		if ((flags & NOSKIP) == 0) {
-			while ((wi = __fgetwc(fp, loc)) != WEOF && iswspace_l(wi, loc))
+			while ((wi = __fgetwc(fp)) != WEOF && iswspace(wi))
 				nread++;
 			if (wi == WEOF)
 				goto input_failure;
-			__ungetwc(wi, fp, loc);
+			__ungetwc(wi, fp);
 		}
 
 		/*
@@ -403,7 +364,7 @@ literal:
 					p = va_arg(ap, wchar_t *);
 				n = 0;
 				while (width-- != 0 &&
-				    (wi = __fgetwc(fp, loc)) != WEOF) {
+				    (wi = __fgetwc(fp)) != WEOF) {
 					if (!(flags & SUPPRESS))
 						*p++ = (wchar_t)wi;
 					n++;
@@ -417,21 +378,21 @@ literal:
 				if (!(flags & SUPPRESS))
 					mbp = va_arg(ap, char *);
 				n = 0;
-				mbs = initial_mbs;
+				mbs = initial;
 				while (width != 0 &&
-				    (wi = __fgetwc(fp, loc)) != WEOF) {
-					if (width >= mb_cur_max &&
+				    (wi = __fgetwc(fp)) != WEOF) {
+					if (width >= MB_CUR_MAX &&
 					    !(flags & SUPPRESS)) {
-						nconv = wcrtomb_l(mbp, wi, &mbs, loc);
+						nconv = wcrtomb(mbp, wi, &mbs);
 						if (nconv == (size_t)-1)
 							goto input_failure;
 					} else {
-						nconv = wcrtomb_l(mbbuf, wi,
-						    &mbs, loc);
+						nconv = wcrtomb(mbbuf, wi,
+						    &mbs);
 						if (nconv == (size_t)-1)
 							goto input_failure;
 						if (nconv > width) {
-							__ungetwc(wi, fp, loc);
+							__ungetwc(wi, fp);
 							break;
 						}
 						if (!(flags & SUPPRESS))
@@ -449,6 +410,7 @@ literal:
 				if (!(flags & SUPPRESS))
 					nassigned++;
 			}
+			nconversions++;
 			break;
 
 		case CT_CCL:
@@ -458,20 +420,20 @@ literal:
 			/* take only those things in the class */
 			if ((flags & SUPPRESS) && (flags & LONG)) {
 				n = 0;
-				while ((wi = __fgetwc(fp, loc)) != WEOF &&
+				while ((wi = __fgetwc(fp)) != WEOF &&
 				    width-- != 0 && INCCL(wi))
 					n++;
 				if (wi != WEOF)
-					__ungetwc(wi, fp, loc);
+					__ungetwc(wi, fp);
 				if (n == 0)
 					goto match_failure;
 			} else if (flags & LONG) {
 				p0 = p = va_arg(ap, wchar_t *);
-				while ((wi = __fgetwc(fp, loc)) != WEOF &&
+				while ((wi = __fgetwc(fp)) != WEOF &&
 				    width-- != 0 && INCCL(wi))
 					*p++ = (wchar_t)wi;
 				if (wi != WEOF)
-					__ungetwc(wi, fp, loc);
+					__ungetwc(wi, fp);
 				n = p - p0;
 				if (n == 0)
 					goto match_failure;
@@ -481,17 +443,17 @@ literal:
 				if (!(flags & SUPPRESS))
 					mbp = va_arg(ap, char *);
 				n = 0;
-				mbs = initial_mbs;
-				while ((wi = __fgetwc(fp, loc)) != WEOF &&
+				mbs = initial;
+				while ((wi = __fgetwc(fp)) != WEOF &&
 				    width != 0 && INCCL(wi)) {
-					if (width >= mb_cur_max &&
+					if (width >= MB_CUR_MAX &&
 					   !(flags & SUPPRESS)) {
-						nconv = wcrtomb_l(mbp, wi, &mbs, loc);
+						nconv = wcrtomb(mbp, wi, &mbs);
 						if (nconv == (size_t)-1)
 							goto input_failure;
 					} else {
-						nconv = wcrtomb_l(mbbuf, wi,
-						    &mbs, loc);
+						nconv = wcrtomb(mbbuf, wi,
+						    &mbs);
 						if (nconv == (size_t)-1)
 							goto input_failure;
 						if (nconv > width)
@@ -506,15 +468,14 @@ literal:
 					n++;
 				}
 				if (wi != WEOF)
-					__ungetwc(wi, fp, loc);
-				if (n == 0)
-					goto match_failure;
+					__ungetwc(wi, fp);
 				if (!(flags & SUPPRESS)) {
 					*mbp = 0;
 					nassigned++;
 				}
 			}
 			nread += n;
+			nconversions++;
 			break;
 
 		case CT_STRING:
@@ -522,39 +483,39 @@ literal:
 			if (width == 0)
 				width = (size_t)~0;
 			if ((flags & SUPPRESS) && (flags & LONG)) {
-				while ((wi = __fgetwc(fp, loc)) != WEOF &&
+				while ((wi = __fgetwc(fp)) != WEOF &&
 				    width-- != 0 &&
-				    !iswspace_l(wi, loc))
+				    !iswspace(wi))
 					nread++;
 				if (wi != WEOF)
-					__ungetwc(wi, fp, loc);
+					__ungetwc(wi, fp);
 			} else if (flags & LONG) {
 				p0 = p = va_arg(ap, wchar_t *);
-				while ((wi = __fgetwc(fp, loc)) != WEOF &&
+				while ((wi = __fgetwc(fp)) != WEOF &&
 				    width-- != 0 &&
-				    !iswspace_l(wi, loc)) {
+				    !iswspace(wi)) {
 					*p++ = (wchar_t)wi;
 					nread++;
 				}
 				if (wi != WEOF)
-					__ungetwc(wi, fp, loc);
+					__ungetwc(wi, fp);
 				*p = '\0';
 				nassigned++;
 			} else {
 				if (!(flags & SUPPRESS))
 					mbp = va_arg(ap, char *);
-				mbs = initial_mbs;
-				while ((wi = __fgetwc(fp, loc)) != WEOF &&
+				mbs = initial;
+				while ((wi = __fgetwc(fp)) != WEOF &&
 				    width != 0 &&
-				    !iswspace_l(wi, loc)) {
-					if (width >= mb_cur_max &&
+				    !iswspace(wi)) {
+					if (width >= MB_CUR_MAX &&
 					    !(flags & SUPPRESS)) {
-						nconv = wcrtomb_l(mbp, wi, &mbs, loc);
+						nconv = wcrtomb(mbp, wi, &mbs);
 						if (nconv == (size_t)-1)
 							goto input_failure;
 					} else {
-						nconv = wcrtomb_l(mbbuf, wi,
-						    &mbs, loc);
+						nconv = wcrtomb(mbbuf, wi,
+						    &mbs);
 						if (nconv == (size_t)-1)
 							goto input_failure;
 						if (nconv > width)
@@ -569,12 +530,13 @@ literal:
 					nread++;
 				}
 				if (wi != WEOF)
-					__ungetwc(wi, fp, loc);
+					__ungetwc(wi, fp);
 				if (!(flags & SUPPRESS)) {
 					*mbp = 0;
 					nassigned++;
 				}
 			}
+			nconversions++;
 			continue;
 
 		case CT_INT:
@@ -584,7 +546,7 @@ literal:
 				width = sizeof(buf) / sizeof(*buf) - 1;
 			flags |= SIGNOK | NDIGITS | NZDIGITS;
 			for (p = buf; width; width--) {
-				c = __fgetwc(fp, loc);
+				c = __fgetwc(fp);
 				/*
 				 * Switch on the character; `goto ok'
 				 * if we accept it as a part of number.
@@ -668,7 +630,7 @@ literal:
 				 * for a number.  Stop accumulating digits.
 				 */
 				if (c != WEOF)
-					__ungetwc(c, fp, loc);
+					__ungetwc(c, fp);
 				break;
 		ok:
 				/*
@@ -684,22 +646,22 @@ literal:
 			 */
 			if (flags & NDIGITS) {
 				if (p > buf)
-					__ungetwc(*--p, fp, loc);
+					__ungetwc(*--p, fp);
 				goto match_failure;
 			}
 			c = p[-1];
 			if (c == 'x' || c == 'X') {
 				--p;
-				__ungetwc(c, fp, loc);
+				__ungetwc(c, fp);
 			}
 			if ((flags & SUPPRESS) == 0) {
 				uintmax_t res;
 
 				*p = 0;
 				if ((flags & UNSIGNED) == 0)
-				    res = wcstoimax_l(buf, NULL, base, loc);
+				    res = wcstoimax(buf, NULL, base);
 				else
-				    res = wcstoumax_l(buf, NULL, base, loc);
+				    res = wcstoumax(buf, NULL, base);
 				if (flags & POINTER)
 					*va_arg(ap, void **) =
 							(void *)(uintptr_t)res;
@@ -722,73 +684,58 @@ literal:
 				nassigned++;
 			}
 			nread += p - buf;
+			nconversions++;
 			break;
 
 #ifndef NO_FLOATING_POINT
 		case CT_FLOAT:
-		{
-			wchar_t *pbuf;
 			/* scan a floating point number as if by strtod */
-			if ((width = parsefloat(fp, &pbuf, width, loc)) == 0)
+			if (width == 0 || width > sizeof(buf) /
+			    sizeof(*buf) - 1)
+				width = sizeof(buf) / sizeof(*buf) - 1;
+			if ((width = parsefloat(fp, buf, buf + width)) == 0)
 				goto match_failure;
 			if ((flags & SUPPRESS) == 0) {
 				if (flags & LONGDBL) {
-					long double res = wcstold_l(pbuf, &p, loc);
+					long double res = wcstold(buf, &p);
 					*va_arg(ap, long double *) = res;
 				} else if (flags & LONG) {
-					double res = wcstod_l(pbuf, &p, loc);
+					double res = wcstod(buf, &p);
 					*va_arg(ap, double *) = res;
 				} else {
-					float res = wcstof_l(pbuf, &p, loc);
+					float res = wcstof(buf, &p);
 					*va_arg(ap, float *) = res;
 				}
+				if (__scanfdebug && p - buf != width)
+					abort();
 				nassigned++;
 			}
 			nread += width;
+			nconversions++;
 			break;
-		}
 #endif /* !NO_FLOATING_POINT */
 		}
 	}
 input_failure:
-	return (nassigned ? nassigned : EOF);
+	return (nconversions != 0 ? nassigned : EOF);
 match_failure:
 	return (nassigned);
 }
 
 #ifndef NO_FLOATING_POINT
-extern char *__parsefloat_buf(size_t s);  /* see vfscanf-fbsd.c */
-
 static int
-parsefloat(FILE *fp, wchar_t **buf, size_t width, locale_t loc)
+parsefloat(FILE *fp, wchar_t *buf, wchar_t *end)
 {
-	mbstate_t mbs;
-	size_t nconv;
 	wchar_t *commit, *p;
 	int infnanpos = 0;
 	enum {
-		S_START, S_GOTSIGN, S_INF, S_NAN, S_DONE, S_MAYBEHEX,
+		S_START, S_GOTSIGN, S_INF, S_NAN, S_MAYBEHEX,
 		S_DIGITS, S_FRAC, S_EXP, S_EXPDIGITS
 	} state = S_START;
 	wchar_t c;
-	wchar_t decpt;
+	wchar_t decpt = (wchar_t)(unsigned char)*localeconv()->decimal_point;
 	_Bool gotmantdig = 0, ishex = 0;
-	wchar_t *b;
-	wchar_t *e;
-	size_t s;
 
-	mbs = initial_mbs;
-
-	nconv = mbrtowc_l(&decpt, localeconv()->decimal_point, MB_CUR_MAX_L(loc), &mbs, loc);
-	if (nconv == (size_t)-1 || nconv == (size_t)-2)
-		decpt = '.';    /* failsafe */
-
-	s = (width == 0 ? BUF : (width + 1));
-	if ((b = (wchar_t *)__parsefloat_buf(s * sizeof(wchar_t))) == NULL) {
-		*buf = NULL;
-		return 0;
-	}
-	e = b + (s - 1);
 	/*
 	 * We set commit = p whenever the string we have read so far
 	 * constitutes a valid representation of a floating point
@@ -798,10 +745,10 @@ parsefloat(FILE *fp, wchar_t **buf, size_t width, locale_t loc)
 	 * always necessary to read at least one character that doesn't
 	 * match; thus, we can't short-circuit "infinity" or "nan(...)".
 	 */
-	commit = b - 1;
+	commit = buf - 1;
 	c = WEOF;
-	for (p = b; width == 0 || p < e; ) {
-		if ((c = __fgetwc(fp, loc)) == WEOF)
+	for (p = buf; p < end; ) {
+		if ((c = __fgetwc(fp)) == WEOF)
 			break;
 reswitch:
 		switch (state) {
@@ -841,6 +788,8 @@ reswitch:
 			break;
 		case S_NAN:
 			switch (infnanpos) {
+			case -1:	/* XXX kludge to deal with nan(...) */
+				goto parsedone;
 			case 0:
 				if (c != 'A' && c != 'a')
 					goto parsedone;
@@ -858,15 +807,13 @@ reswitch:
 			default:
 				if (c == ')') {
 					commit = p;
-					state = S_DONE;
-				} else if (!iswalnum_l(c, loc) && c != '_')
+					infnanpos = -2;
+				} else if (!iswalnum(c) && c != '_')
 					goto parsedone;
 				break;
 			}
 			infnanpos++;
 			break;
-		case S_DONE:
-			goto parsedone;
 		case S_MAYBEHEX:
 			state = S_DIGITS;
 			if (c == 'X' || c == 'x') {
@@ -877,7 +824,7 @@ reswitch:
 				goto reswitch;
 			}
 		case S_DIGITS:
-			if ((ishex && iswxdigit_l(c, loc)) || iswdigit_l(c, loc))
+			if ((ishex && iswxdigit(c)) || iswdigit(c))
 				gotmantdig = 1;
 			else {
 				state = S_FRAC;
@@ -894,7 +841,7 @@ reswitch:
 					goto parsedone;
 				else
 					state = S_EXP;
-			} else if ((ishex && iswxdigit_l(c, loc)) || iswdigit_l(c, loc)) {
+			} else if ((ishex && iswxdigit(c)) || iswdigit(c)) {
 				commit = p;
 				gotmantdig = 1;
 			} else
@@ -907,26 +854,13 @@ reswitch:
 			else
 				goto reswitch;
 		case S_EXPDIGITS:
-			if (iswdigit_l(c, loc))
+			if (iswdigit(c))
 				commit = p;
 			else
 				goto parsedone;
 			break;
 		default:
-			LIBC_ABORT("unknown state %d", state);
-		}
-		if (p >= e) {
-			ssize_t diff = (p - b);
-			ssize_t com = (commit - b);
-			s += BUF;
-			b = (wchar_t *)__parsefloat_buf(s * sizeof(wchar_t));
-			if (b == NULL) {
-				*buf = NULL;
-				return 0;
-			}
-			e = b + (s - 1);
-			p = b + diff;
-			commit = b + com;
+			abort();
 		}
 		*p++ = c;
 		c = WEOF;
@@ -934,11 +868,10 @@ reswitch:
 
 parsedone:
 	if (c != WEOF)
-		__ungetwc(c, fp, loc);
+		__ungetwc(c, fp);
 	while (commit < --p)
-		__ungetwc(*p, fp, loc);
+		__ungetwc(*p, fp);
 	*++commit = '\0';
-	*buf = b;
-	return (commit - b);
+	return (commit - buf);
 }
 #endif

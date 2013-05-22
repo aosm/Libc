@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,7 +38,7 @@
 static char sccsid[] = "@(#)memcmp.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/string/memcmp.c,v 1.6 2009/02/03 17:58:20 danger Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/string/memcmp.c,v 1.4 2002/03/21 18:44:54 obrien Exp $");
 
 #include <string.h>
 
@@ -42,7 +46,9 @@ __FBSDID("$FreeBSD: src/lib/libc/string/memcmp.c,v 1.6 2009/02/03 17:58:20 dange
  * Compare memory regions.
  */
 int
-memcmp(const void *s1, const void *s2, size_t n)
+memcmp(s1, s2, n)
+	const void *s1, *s2;
+	size_t n;
 {
 	if (n != 0) {
 		const unsigned char *p1 = s1, *p2 = s2;

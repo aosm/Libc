@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD: src/lib/libc/locale/ldpart.c,v 1.15 2004/04/25 19:56:50 ache Exp $");
 
-#include "xlocale_private.h"
-
 #include "namespace.h"
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -46,9 +44,9 @@ __FBSDID("$FreeBSD: src/lib/libc/locale/ldpart.c,v 1.15 2004/04/25 19:56:50 ache
 
 static int split_lines(char *, const char *);
 
-__private_extern__ int
+int
 __part_load_locale(const char *name,
-		unsigned char *using_locale,
+		int *using_locale,
 		char **locale_buf,
 		const char *category_filename,
 		int locale_buf_size_max,
@@ -61,6 +59,20 @@ __part_load_locale(const char *name,
 	char		filename[PATH_MAX];
 	struct stat	st;
 	size_t		namesize, bufsize;
+
+	/* 'name' must be already checked. */
+	if (strcmp(name, "C") == 0 || strcmp(name, "POSIX") == 0) {
+		*using_locale = 0;
+		return (_LDP_CACHE);
+	}
+
+	/*
+	 * If the locale name is the same as our cache, use the cache.
+	 */
+	if (*locale_buf != NULL && strcmp(name, *locale_buf) == 0) {
+		*using_locale = 1;
+		return (_LDP_CACHE);
+	}
 
 	/*
 	 * Slurp the locale file into the cache.
@@ -103,7 +115,9 @@ __part_load_locale(const char *name,
 	num_lines = split_lines(p, plim);
 	if (num_lines >= locale_buf_size_max)
 		num_lines = locale_buf_size_max;
-	else if (num_lines < locale_buf_size_min) {
+	else if (num_lines >= locale_buf_size_min)
+		num_lines = locale_buf_size_min;
+	else {
 		errno = EFTYPE;
 		goto bad_lbuf;
 	}
@@ -150,9 +164,3 @@ split_lines(char *p, const char *plim)
 	return (i);
 }
 
-__private_extern__ void
-__ldpart_free_extra(struct __xlocale_st_ldpart *lp)
-{
-	if (lp)
-		free(lp->_locale_buf);
-}

@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,7 +35,7 @@
 static char sccsid[] = "@(#)bsearch.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdlib/bsearch.c,v 1.4 2007/01/09 00:28:09 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/bsearch.c,v 1.3 2002/03/21 22:48:41 obrien Exp $");
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -77,31 +81,3 @@ bsearch(key, base0, nmemb, size, compar)
 	}
 	return (NULL);
 }
-
-#ifdef __BLOCKS__
-void *
-bsearch_b(key, base0, nmemb, size, compar)
-	const void *key;
-	const void *base0;
-	size_t nmemb;
-	size_t size;
-	int (^compar)(const void *, const void *);
-{
-	const char *base = base0;
-	size_t lim;
-	int cmp;
-	const void *p;
-
-	for (lim = nmemb; lim != 0; lim >>= 1) {
-		p = base + (lim >> 1) * size;
-		cmp = compar(key, p);
-		if (cmp == 0)
-			return ((void *)p);
-		if (cmp > 0) {	/* key > p: move right */
-			base = (char *)p + size;
-			lim--;
-		}		/* else move left */
-	}
-	return (NULL);
-}
-#endif /* __BLOCKS__ */

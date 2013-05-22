@@ -26,6 +26,7 @@
  *	@(#)sigaction.c	1.0
  */
 
+#include <sys/syscall.h>
 #include <unistd.h>
 #include <signal.h>
 #include <sys/signal.h>
@@ -36,7 +37,6 @@
  *	as the signal handler instead.  The code here is derived
  *	from sigvec in sys/kern_sig.c.
  */
-extern int __sigaction (int, struct __sigaction * __restrict, struct sigaction * __restrict);
 
 int
 sigaction (int sig, const struct sigaction * __restrict nsv, struct sigaction * __restrict osv)
@@ -57,7 +57,10 @@ sigaction (int sig, const struct sigaction * __restrict nsv, struct sigaction * 
 		sa.sa_flags = nsv->sa_flags;	
 		sap = &sa;
 	}
-	return __sigaction(sig, sap, osv);
+	if (syscall (SYS_sigaction, sig, sap, osv) < 0) {
+	        return (-1);
+	}
+	return (0);
 }
 
 // XXX

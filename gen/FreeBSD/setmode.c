@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,7 +38,7 @@
 static char sccsid[] = "@(#)setmode.c	8.2 (Berkeley) 3/25/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gen/setmode.c,v 1.11 2007/01/09 00:27:55 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/gen/setmode.c,v 1.9 2003/02/23 00:24:03 mikeh Exp $");
 
 #include "namespace.h"
 #include <sys/types.h>
@@ -66,15 +70,12 @@ typedef struct bitcmd {
 #define	CMD2_OBITS	0x08
 #define	CMD2_UBITS	0x10
 
-#define	compress_mode	_sm_compress_mode
-
 static BITCMD	*addcmd(BITCMD *, int, int, int, u_int);
-__private_extern__ void		compress_mode(BITCMD *);
+static void	 compress_mode(BITCMD *);
 #ifdef SETMODE_DEBUG
 static void	 dumpmode(BITCMD *);
 #endif
 
-#ifndef BUILDING_VARIANT
 /*
  * Given the old mode and an array of bitcmd structures, apply the operations
  * described in the bitcmd structures to the old mode, and return the new mode.
@@ -82,7 +83,9 @@ static void	 dumpmode(BITCMD *);
  * bits) followed by a '+' (set bits).
  */
 mode_t
-getmode(const void *bbox, mode_t omode)
+getmode(bbox, omode)
+	const void *bbox;
+	mode_t omode;
 {
 	const BITCMD *set;
 	mode_t clrval, newmode, value;
@@ -148,7 +151,6 @@ common:			if (set->cmd2 & CMD2_CLR) {
 			return (newmode);
 		}
 }
-#endif /* BUILDING_VARIANT */
 
 #define	ADDCMD(a, b, c, d)						\
 	if (set >= endset) {						\
@@ -167,14 +169,11 @@ common:			if (set->cmd2 & CMD2_CLR) {
 	}								\
 	set = addcmd(set, (a), (b), (c), (d))
 
-#ifndef VARIANT_LEGACY
-#define	STANDARD_BITS	(S_ISUID|S_ISGID|S_IRWXU|S_IRWXG|S_IRWXO|S_ISTXT)
-#else /* VARIANT_LEGACY */
 #define	STANDARD_BITS	(S_ISUID|S_ISGID|S_IRWXU|S_IRWXG|S_IRWXO)
-#endif /* !VARIANT_LEGACY */
 
 void *
-setmode(const char *p)
+setmode(p)
+	const char *p;
 {
 	int perm, who;
 	char op, *ep;
@@ -212,21 +211,12 @@ setmode(const char *p)
 	 */
 	if (isdigit((unsigned char)*p)) {
 		perml = strtol(p, &ep, 8);
-#ifndef VARIANT_LEGACY
-		if (*ep || perml < 0 || perml & ~STANDARD_BITS)
-#else /* VARIANT_LEGACY */
-		if (*ep || perml < 0 || perml & ~(STANDARD_BITS|S_ISTXT))
-#endif /* !VARIANT_LEGACY */
-		{
+		if (*ep || perml < 0 || perml & ~(STANDARD_BITS|S_ISTXT)) {
 			free(saveset);
 			return (NULL);
 		}
 		perm = (mode_t)perml;
-#ifndef VARIANT_LEGACY
-		ADDCMD('=', STANDARD_BITS, perm, mask);
-#else /* VARIANT_LEGACY */
 		ADDCMD('=', (STANDARD_BITS|S_ISTXT), perm, mask);
-#endif /* !VARIANT_LEGACY */
 		set->cmd = 0;
 		return (saveset);
 	}
@@ -263,9 +253,7 @@ getop:		if ((op = *p++) != '+' && op != '-' && op != '=') {
 		if (op == '=')
 			equalopdone = 0;
 
-#ifdef VARIANT_LEGACY
 		who &= ~S_ISTXT;
-#endif /* VARIANT_LEGACY */
 		for (perm = 0, permXbits = 0;; ++p) {
 			switch (*p) {
 			case 'r':
@@ -279,9 +267,7 @@ getop:		if ((op = *p++) != '+' && op != '-' && op != '=') {
 			case 't':
 				/* If only "other" bits ignore sticky. */
 				if (!who || who & ~S_IRWXO) {
-#ifdef VARIANT_LEGACY
 					who |= S_ISTXT;
-#endif /* VARIANT_LEGACY */
 					perm |= S_ISTXT;
 				}
 				break;
@@ -354,7 +340,11 @@ apply:		if (!*p)
 }
 
 static BITCMD *
-addcmd(BITCMD *set, int op, int who, int oparg, u_int mask)
+addcmd(set, op, who, oparg, mask)
+	BITCMD *set;
+	int oparg, who;
+	int op;
+	u_int mask;
 {
 	switch (op) {
 	case '=':
@@ -398,7 +388,8 @@ addcmd(BITCMD *set, int op, int who, int oparg, u_int mask)
 
 #ifdef SETMODE_DEBUG
 static void
-dumpmode(BITCMD *set)
+dumpmode(set)
+	BITCMD *set;
 {
 	for (; set->cmd; ++set)
 		(void)printf("cmd: '%c' bits %04o%s%s%s%s%s%s\n",
@@ -411,15 +402,15 @@ dumpmode(BITCMD *set)
 }
 #endif
 
-#ifndef BUILDING_VARIANT
 /*
  * Given an array of bitcmd structures, compress by compacting consecutive
  * '+', '-' and 'X' commands into at most 3 commands, one of each.  The 'u',
  * 'g' and 'o' commands continue to be separate.  They could probably be
  * compacted, but it's not worth the effort.
  */
-__private_extern__ void
-compress_mode(BITCMD *set)
+static void
+compress_mode(set)
+	BITCMD *set;
 {
 	BITCMD *nset;
 	int setbits, clrbits, Xbits, op;
@@ -466,4 +457,3 @@ compress_mode(BITCMD *set)
 		}
 	}
 }
-#endif /* BUILDING_VARIANT */

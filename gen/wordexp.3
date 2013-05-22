@@ -34,24 +34,18 @@
 .Sh SYNOPSIS
 .In wordexp.h
 .Ft int
-.Fo wordexp
-.Fa "const char *restrict words"
-.Fa "wordexp_t *restrict pwordexp"
-.Fa "int flags"
-.Fc
+.Fn wordexp "const char * restrict words" "wordexp_t * restrict we" "int flags"
 .Ft void
-.Fo wordfree
-.Fa "wordexp_t *pwordexp"
-.Fc
+.Fn wordfree "wordexp_t *we"
 .Sh DESCRIPTION
 The
 .Fn wordexp
 function performs shell-style word expansion on
-.Fa words .
-It places the list of words into the
+.Fa words
+and places the list of words into the
 .Va we_wordv
 member of
-.Fa pwordexp
+.Fa we ,
 and the number of words into
 .Va we_wordc .
 .Pp
@@ -70,7 +64,7 @@ As many
 pointers as are specified by the
 .Va we_offs
 member of
-.Fa pwordexp
+.Fa we
 are added to the front of
 .Va we_wordv .
 .It Dv WRDE_NOCMD
@@ -81,7 +75,7 @@ See the note in
 before using this.
 .It Dv WRDE_REUSE
 The
-.Fa pwordexp
+.Fa we
 argument was passed to a previous successful call to
 .Fn wordexp
 but has not been passed to
@@ -159,10 +153,10 @@ and
 .Pa /etc/motd
 (error checking omitted):
 .Bd -literal -offset indent
-wordexp_t pwordexp;
+wordexp_t we;
 
-wordexp("${EDITOR:-vi} *.c /etc/motd", &pwordexp, 0);
-execvp(pwordexp->we_wordv[0], pwordexp->we_wordv);
+wordexp("${EDITOR:-vi} *.c /etc/motd", &we, 0);
+execvp(we->we_wordv[0], we->we_wordv);
 .Ed
 .Sh SEE ALSO
 .Xr sh 1 ,
@@ -172,7 +166,7 @@ execvp(pwordexp->we_wordv[0], pwordexp->we_wordv);
 .Xr system 3
 .Sh BUGS
 This version of
-.Fn wordexp
+.Fn workexp
 ignores the value of the
 .Fa flags
 argument.

@@ -28,9 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdio/vasprintf.c,v 1.19 2008/04/17 22:17:54 jhb Exp $");
-
-#include "xlocale_private.h"
+__FBSDID("$FreeBSD: src/lib/libc/stdio/vasprintf.c,v 1.18 2002/09/26 13:11:24 tjr Exp $");
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,19 +36,15 @@ __FBSDID("$FreeBSD: src/lib/libc/stdio/vasprintf.c,v 1.19 2008/04/17 22:17:54 jh
 #include "local.h"
 
 int
-vasprintf_l(str, loc, fmt, ap)
+vasprintf(str, fmt, ap)
 	char **str;
-	locale_t loc;
 	const char *fmt;
 	__va_list ap;
 {
 	int ret;
 	FILE f;
 	struct __sFILEX ext;
-	f._extra = &ext;
-	INITEXTRA(&f);
-	
-	NORMALIZE_LOCALE(loc);
+
 	f._file = -1;
 	f._flags = __SWR | __SSTR | __SALC;
 	f._bf._base = f._p = (unsigned char *)malloc(128);
@@ -60,9 +54,9 @@ vasprintf_l(str, loc, fmt, ap)
 		return (-1);
 	}
 	f._bf._size = f._w = 127;		/* Leave room for the NUL */
-	f._orientation = 0;
-	memset(&f._mbstate, 0, sizeof(mbstate_t));
-	ret = __vfprintf(&f, loc, fmt, ap);
+	f._extra = &ext;
+	INITEXTRA(&f);
+	ret = __vfprintf(&f, fmt, ap);
 	if (ret < 0) {
 		free(f._bf._base);
 		*str = NULL;
@@ -72,13 +66,4 @@ vasprintf_l(str, loc, fmt, ap)
 	*f._p = '\0';
 	*str = (char *)f._bf._base;
 	return (ret);
-}
-
-int
-vasprintf(str, fmt, ap)
-	char **str;
-	const char *fmt;
-	__va_list ap;
-{
-	return vasprintf_l(str, __current_locale(), fmt, ap);
 }

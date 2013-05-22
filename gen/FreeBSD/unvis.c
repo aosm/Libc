@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,9 +35,7 @@
 static char sccsid[] = "@(#)unvis.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gen/unvis.c,v 1.10 2007/01/09 00:27:56 imp Exp $");
-
-#include "xlocale_private.h"
+__FBSDID("$FreeBSD: src/lib/libc/gen/unvis.c,v 1.9 2004/08/02 08:46:23 stefanf Exp $");
 
 #include <sys/types.h>
 #include <ctype.h>
@@ -62,7 +64,6 @@ __FBSDID("$FreeBSD: src/lib/libc/gen/unvis.c,v 1.10 2007/01/09 00:27:56 imp Exp 
 int
 unvis(char *cp, int c, int *astate, int flag)
 {
-	locale_t loc = __current_locale();
 
 	if (flag & UNVIS_END) {
 		if (*astate == S_OCTAL2 || *astate == S_OCTAL3) {
@@ -89,8 +90,8 @@ unvis(char *cp, int c, int *astate, int flag)
 
 	case S_START:
 		if (*astate & S_HTTP) {
-		    if (ishex(tolower_l(c, loc))) {
-			*cp = isdigit_l(c, loc) ? (c - '0') : (tolower_l(c, loc) - 'a');
+		    if (ishex(tolower(c))) {
+			*cp = isdigit(c) ? (c - '0') : (tolower(c) - 'a');
 			*astate = S_HEX2;
 			return (0);
 		    }
@@ -215,8 +216,8 @@ unvis(char *cp, int c, int *astate, int flag)
 		return (UNVIS_VALIDPUSH);
 
 	case S_HEX2:	/* second mandatory hex digit */
-		if (ishex(tolower_l(c, loc))) {
-			*cp = (isdigit_l(c, loc) ? (*cp << 4) + (c - '0') : (*cp << 4) + (tolower_l(c, loc) - 'a' + 10));
+		if (ishex(tolower(c))) {
+			*cp = (isdigit(c) ? (*cp << 4) + (c - '0') : (*cp << 4) + (tolower(c) - 'a' + 10));
 		}
 		*astate = S_GROUND;
 		return (UNVIS_VALID);

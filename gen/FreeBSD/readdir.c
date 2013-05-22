@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,7 +35,7 @@
 static char sccsid[] = "@(#)readdir.c	8.3 (Berkeley) 9/29/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gen/readdir.c,v 1.15 2008/05/05 14:05:23 kib Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/gen/readdir.c,v 1.11 2002/02/26 21:39:32 alfred Exp $");
 
 #include "namespace.h"
 #include <sys/param.h>
@@ -39,19 +43,16 @@ __FBSDID("$FreeBSD: src/lib/libc/gen/readdir.c,v 1.15 2008/05/05 14:05:23 kib Ex
 #include <errno.h>
 #include <string.h>
 #include <pthread.h>
-#include <unistd.h>
 #include "un-namespace.h"
 
 #include "libc_private.h"
-#include "telldir.h"
 
 /*
  * get next entry in a directory.
  */
 struct dirent *
-_readdir_unlocked(dirp, skip)
+_readdir_unlocked(dirp)
 	DIR *dirp;
-	int skip;
 {
 	struct dirent *dp;
 
@@ -62,13 +63,8 @@ _readdir_unlocked(dirp, skip)
 			dirp->dd_loc = 0;
 		}
 		if (dirp->dd_loc == 0 && !(dirp->dd_flags & __DTF_READALL)) {
-#if __DARWIN_64_BIT_INO_T
-			dirp->dd_size = __getdirentries64(dirp->dd_fd,
-			    dirp->dd_buf, dirp->dd_len, &dirp->dd_td->seekoff);
-#else /* !__DARWIN_64_BIT_INO_T */
 			dirp->dd_size = _getdirentries(dirp->dd_fd,
 			    dirp->dd_buf, dirp->dd_len, &dirp->dd_seek);
-#endif /* __DARWIN_64_BIT_INO_T */
 			if (dirp->dd_size <= 0)
 				return (NULL);
 		}
@@ -79,7 +75,7 @@ _readdir_unlocked(dirp, skip)
 		    dp->d_reclen > dirp->dd_len + 1 - dirp->dd_loc)
 			return (NULL);
 		dirp->dd_loc += dp->d_reclen;
-		if (dp->d_ino == 0 && skip)
+		if (dp->d_ino == 0)
 			continue;
 		if (dp->d_type == DT_WHT && (dirp->dd_flags & DTF_HIDEW))
 			continue;
@@ -94,12 +90,12 @@ readdir(dirp)
 	struct dirent	*dp;
 
 	if (__isthreaded) {
-		_pthread_mutex_lock(&dirp->dd_lock);
-		dp = _readdir_unlocked(dirp, 1);
-		_pthread_mutex_unlock(&dirp->dd_lock);
+		_pthread_mutex_lock((pthread_mutex_t *)&dirp->dd_lock);
+		dp = _readdir_unlocked(dirp);
+		_pthread_mutex_unlock((pthread_mutex_t *)&dirp->dd_lock);
 	}
 	else
-		dp = _readdir_unlocked(dirp, 1);
+		dp = _readdir_unlocked(dirp);
 	return (dp);
 }
 
@@ -115,12 +111,12 @@ readdir_r(dirp, entry, result)
 	saved_errno = errno;
 	errno = 0;
 	if (__isthreaded) {
-		_pthread_mutex_lock(&dirp->dd_lock);
-		if ((dp = _readdir_unlocked(dirp, 1)) != NULL)
+		_pthread_mutex_lock((pthread_mutex_t *)&dirp->dd_lock);
+		if ((dp = _readdir_unlocked(dirp)) != NULL)
 			memcpy(entry, dp, _GENERIC_DIRSIZ(dp));
-		_pthread_mutex_unlock(&dirp->dd_lock);
+		_pthread_mutex_unlock((pthread_mutex_t *)&dirp->dd_lock);
 	}
-	else if ((dp = _readdir_unlocked(dirp, 1)) != NULL)
+	else if ((dp = _readdir_unlocked(dirp)) != NULL)
 		memcpy(entry, dp, _GENERIC_DIRSIZ(dp));
 
 	if (errno != 0) {

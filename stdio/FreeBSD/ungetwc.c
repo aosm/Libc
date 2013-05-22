@@ -25,13 +25,10 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdio/ungetwc.c,v 1.11 2008/04/17 22:17:54 jhb Exp $");
-
-#include "xlocale_private.h"
+__FBSDID("$FreeBSD: src/lib/libc/stdio/ungetwc.c,v 1.9 2004/07/20 08:27:27 tjr Exp $");
 
 #include "namespace.h"
 #include <errno.h>
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <wchar.h>
@@ -44,14 +41,14 @@ __FBSDID("$FreeBSD: src/lib/libc/stdio/ungetwc.c,v 1.11 2008/04/17 22:17:54 jhb 
  * Non-MT-safe version.
  */
 wint_t
-__ungetwc(wint_t wc, FILE *fp, locale_t loc)
+__ungetwc(wint_t wc, FILE *fp)
 {
 	char buf[MB_LEN_MAX];
 	size_t len;
 
 	if (wc == WEOF)
 		return (WEOF);
-	if ((len = loc->__lc_ctype->__wcrtomb(buf, wc, &fp->_mbstate, loc)) == (size_t)-1) {
+	if ((len = __wcrtomb(buf, wc, &fp->_extra->mbstate)) == (size_t)-1) {
 		fp->_flags |= __SERR;
 		return (WEOF);
 	}
@@ -72,21 +69,7 @@ ungetwc(wint_t wc, FILE *fp)
 
 	FLOCKFILE(fp);
 	ORIENT(fp, 1);
-	r = __ungetwc(wc, fp, __current_locale());
-	FUNLOCKFILE(fp);
-
-	return (r);
-}
-
-wint_t
-ungetwc_l(wint_t wc, FILE *fp, locale_t loc)
-{
-	wint_t r;
-
-	NORMALIZE_LOCALE(loc);
-	FLOCKFILE(fp);
-	ORIENT(fp, 1);
-	r = __ungetwc(wc, fp, loc);
+	r = __ungetwc(wc, fp);
 	FUNLOCKFILE(fp);
 
 	return (r);

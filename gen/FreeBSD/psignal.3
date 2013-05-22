@@ -9,6 +9,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -26,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)psignal.3	8.2 (Berkeley) 2/27/95
-.\" $FreeBSD: src/lib/libc/gen/psignal.3,v 1.17 2007/01/09 00:27:54 imp Exp $
+.\" $FreeBSD: src/lib/libc/gen/psignal.3,v 1.16 2002/12/30 21:18:02 schweikh Exp $
 .\"
 .Dd February 27, 1995
 .Dt PSIGNAL 3
@@ -98,19 +102,6 @@ contains a count of the strings in
 .Va sys_siglist
 and
 .Va sys_signame .
-.Sh RETURN VALUES
-.Fn strsignal
-a pointer to the desired message or a NULL value indicating an error.  This
-string is not to be freed by the caller.  Beginning with Mac OSX 10.7, this
-string is unique to each thread.
-.Sh ERRORS
-.Fn strsignal
-will fail and no additional memory will be allocated if
-one of the following are true:
-.Bl -tag -width Er
-.It Bq Er ENOMEM
-There was insufficient memory to allocate storage space for the return value in the running thread.
-.El
 .Sh SEE ALSO
 .Xr sigaction 2 ,
 .Xr perror 3 ,

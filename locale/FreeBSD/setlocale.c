@@ -14,6 +14,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -35,9 +39,7 @@
 static char sccsid[] = "@(#)setlocale.c	8.1 (Berkeley) 7/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/locale/setlocale.c,v 1.51 2007/01/09 00:28:00 imp Exp $");
-
-#include "xlocale_private.h"
+__FBSDID("$FreeBSD: src/lib/libc/locale/setlocale.c,v 1.50 2004/01/31 19:15:32 ache Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -54,7 +56,7 @@ __FBSDID("$FreeBSD: src/lib/libc/locale/setlocale.c,v 1.51 2007/01/09 00:28:00 i
 #include "lmessages.h"	/* for __messages_load_locale() */
 #include "setlocale.h"
 #include "ldpart.h"
-#include "timelocal.h" /* for __time_load_locale() */
+#include "../stdtime/timelocal.h" /* for __time_load_locale() */
 
 /*
  * Category names for getenv()
@@ -97,18 +99,15 @@ static char current_locale_string[_LC_LAST * (ENCODING_LEN + 1/*"/"*/ + 1)];
 
 static char	*currentlocale(void);
 static char	*loadlocale(int);
-__private_extern__ const char *__get_locale_env(int);
-
-#define	UNLOCK_AND_RETURN(x)	{XL_UNLOCK(&__global_locale); return (x);}
+static const char *__get_locale_env(int);
 
 char *
 setlocale(category, locale)
 	int category;
 	const char *locale;
 {
-	int i, j, len, saverr, save__numeric_fp_cvt;
+	int i, j, len, saverr;
         const char *env, *r;
-	locale_t save__lc_numeric_loc;
 
 	if (category < LC_ALL || category >= _LC_LAST) {
 		errno = EINVAL;
@@ -119,7 +118,6 @@ setlocale(category, locale)
 		return (category != LC_ALL ?
 		    current_categories[category] : currentlocale());
 
-	XL_LOCK(&__global_locale);
 	/*
 	 * Default to the current locale for everything.
 	 */
@@ -135,7 +133,7 @@ setlocale(category, locale)
 				env = __get_locale_env(i);
 				if (strlen(env) > ENCODING_LEN) {
 					errno = EINVAL;
-					UNLOCK_AND_RETURN (NULL);
+					return (NULL);
 				}
 				(void)strcpy(new_categories[i], env);
 			}
@@ -143,21 +141,21 @@ setlocale(category, locale)
 			env = __get_locale_env(category);
 			if (strlen(env) > ENCODING_LEN) {
 				errno = EINVAL;
-				UNLOCK_AND_RETURN (NULL);
+				return (NULL);
 			}
 			(void)strcpy(new_categories[category], env);
 		}
 	} else if (category != LC_ALL) {
 		if (strlen(locale) > ENCODING_LEN) {
 			errno = EINVAL;
-			UNLOCK_AND_RETURN (NULL);
+			return (NULL);
 		}
 		(void)strcpy(new_categories[category], locale);
 	} else {
 		if ((r = strchr(locale, '/')) == NULL) {
 			if (strlen(locale) > ENCODING_LEN) {
 				errno = EINVAL;
-				UNLOCK_AND_RETURN (NULL);
+				return (NULL);
 			}
 			for (i = 1; i < _LC_LAST; ++i)
 				(void)strcpy(new_categories[i], locale);
@@ -166,14 +164,14 @@ setlocale(category, locale)
 				;
 			if (!r[1]) {
 				errno = EINVAL;
-				UNLOCK_AND_RETURN (NULL);	/* Hmm, just slashes... */
+				return (NULL);	/* Hmm, just slashes... */
 			}
 			do {
 				if (i == _LC_LAST)
 					break;  /* Too many slashes... */
 				if ((len = r - locale) > ENCODING_LEN) {
 					errno = EINVAL;
-					UNLOCK_AND_RETURN (NULL);
+					return (NULL);
 				}
 				(void)strlcpy(new_categories[i], locale,
 					      len + 1);
@@ -193,11 +191,8 @@ setlocale(category, locale)
 	}
 
 	if (category != LC_ALL)
-		UNLOCK_AND_RETURN (loadlocale(category));
+		return (loadlocale(category));
 
-	save__numeric_fp_cvt = __global_locale.__numeric_fp_cvt;
-	save__lc_numeric_loc = __global_locale.__lc_numeric_loc;
-	XL_RETAIN(save__lc_numeric_loc);
 	for (i = 1; i < _LC_LAST; ++i) {
 		(void)strcpy(saved_categories[i], current_categories[i]);
 		if (loadlocale(i) == NULL) {
@@ -210,15 +205,11 @@ setlocale(category, locale)
 					(void)loadlocale(j);
 				}
 			}
-			__global_locale.__numeric_fp_cvt = save__numeric_fp_cvt;
-			__global_locale.__lc_numeric_loc = save__lc_numeric_loc;
-			XL_RELEASE(save__lc_numeric_loc);
 			errno = saverr;
-			UNLOCK_AND_RETURN (NULL);
+			return (NULL);
 		}
 	}
-	XL_RELEASE(save__lc_numeric_loc);
-	UNLOCK_AND_RETURN (currentlocale());
+	return (currentlocale());
 }
 
 static char *
@@ -246,7 +237,7 @@ loadlocale(category)
 {
 	char *new = new_categories[category];
 	char *old = current_categories[category];
-	int (*func)(const char *, locale_t);
+	int (*func)(const char *);
 	int saved_errno;
 
 	if ((new[0] == '.' &&
@@ -289,26 +280,15 @@ loadlocale(category)
 	if (strcmp(new, old) == 0)
 		return (old);
 
-	if (func(new, &__global_locale) != _LDP_ERROR) {
+	if (func(new) != _LDP_ERROR) {
 		(void)strcpy(old, new);
-		switch (category) {
-		case LC_CTYPE:
-			if (__global_locale.__numeric_fp_cvt == LC_NUMERIC_FP_SAME_LOCALE)
-				__global_locale.__numeric_fp_cvt = LC_NUMERIC_FP_UNINITIALIZED;
-			break;
-		case LC_NUMERIC:
-			__global_locale.__numeric_fp_cvt = LC_NUMERIC_FP_UNINITIALIZED;
-			XL_RELEASE(__global_locale.__lc_numeric_loc);
-			__global_locale.__lc_numeric_loc = NULL;
-			break;
-		}
 		return (old);
 	}
 
 	return (NULL);
 }
 
-__private_extern__ const char *
+static const char *
 __get_locale_env(category)
         int category;
 {
@@ -335,7 +315,7 @@ __get_locale_env(category)
 /*
  * Detect locale storage location and store its value to _PathLocale variable
  */
-__private_extern__ int
+int
 __detect_path_locale(void)
 {
 	if (_PathLocale == NULL) {

@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,16 +35,8 @@
 static char sccsid[] = "@(#)random.c	8.2 (Berkeley) 5/19/95";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdlib/random.c,v 1.25 2007/01/09 00:28:10 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/random.c,v 1.24 2004/01/20 03:02:18 das Exp $");
 
-/*
- * We always compile with __DARWIN_UNIX03 set to one, relying on the fact that
- * (for non-LP64) sizeof(int) == sizeof(long) == sizeof(size_t), so that we
- * don't have to have two different versions of the prototypes.  For LP64,
- * we only support the POSIX-compatible prototypes.
- */
-#undef 	__DARWIN_UNIX03
-#define	__DARWIN_UNIX03	1
 #include "namespace.h"
 #include <sys/time.h>          /* for srandomdev() */
 #include <fcntl.h>             /* for srandomdev() */
@@ -224,7 +220,7 @@ static int rand_deg = DEG_3;
 static int rand_sep = SEP_3;
 static uint32_t *end_ptr = &randtbl[DEG_3 + 1];
 
-static inline uint32_t good_rand(int32_t) __attribute__((always_inline));
+static inline uint32_t good_rand(int32_t);
 
 static inline uint32_t good_rand (x)
 	int32_t x;
@@ -273,7 +269,7 @@ static inline uint32_t good_rand (x)
  */
 void
 srandom(x)
-	unsigned x;
+	unsigned long x;
 {
 	int i, lim;
 
@@ -361,9 +357,9 @@ srandomdev()
  */
 char *
 initstate(seed, arg_state, n)
-	unsigned seed;		/* seed for R.N.G. */
+	unsigned long seed;		/* seed for R.N.G. */
 	char *arg_state;		/* pointer to state array */
-	size_t n;				/* # bytes of state info */
+	long n;				/* # bytes of state info */
 {
 	char *ostate = (char *)(&state[-1]);
 	uint32_t *int_arg_state = (uint32_t *)arg_state;
@@ -429,7 +425,7 @@ initstate(seed, arg_state, n)
  */
 char *
 setstate(arg_state)
-	const char *arg_state;		/* pointer to state array */
+	char *arg_state;		/* pointer to state array */
 {
 	uint32_t *new_state = (uint32_t *)arg_state;
 	uint32_t type = new_state[0] % MAX_TYPES;

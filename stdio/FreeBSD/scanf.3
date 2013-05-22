@@ -13,6 +13,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -30,61 +34,41 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)scanf.3	8.2 (Berkeley) 12/11/93
-.\" $FreeBSD: src/lib/libc/stdio/scanf.3,v 1.25 2007/01/09 00:28:07 imp Exp $
+.\" $FreeBSD: src/lib/libc/stdio/scanf.3,v 1.24 2003/06/28 09:03:25 das Exp $
 .\"
 .Dd January 4, 2003
 .Dt SCANF 3
 .Os
 .Sh NAME
-.Nm fscanf ,
 .Nm scanf ,
+.Nm fscanf ,
 .Nm sscanf ,
-.Nm vfscanf ,
 .Nm vscanf ,
-.Nm vsscanf
+.Nm vsscanf ,
+.Nm vfscanf
 .Nd input format conversion
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In stdio.h
 .Ft int
-.Fo fscanf
-.Fa "FILE *restrict stream"
-.Fa "const char *restrict format" ...
-.Fc
+.Fn scanf "const char * restrict format" ...
 .Ft int
-.Fo scanf
-.Fa "const char *restrict format" ...
-.Fc
+.Fn fscanf "FILE * restrict stream" "const char * restrict format" ...
 .Ft int
-.Fo sscanf
-.Fa "const char *restrict s"
-.Fa "const char *restrict format" ...
-.Fc
+.Fn sscanf "const char * restrict str" "const char * restrict format" ...
 .In stdarg.h
-.In stdio.h
 .Ft int
-.Fo vfscanf
-.Fa "FILE *restrict stream"
-.Fa "const char *restrict format"
-.Fa "va_list arg"
-.Fc
+.Fn vscanf "const char * restrict format" "va_list ap"
 .Ft int
-.Fo vscanf
-.Fa "const char *restrict format"
-.Fa "va_list arg"
-.Fc
+.Fn vsscanf "const char * restrict str" "const char * restrict format" "va_list ap"
 .Ft int
-.Fo vsscanf
-.Fa "const char *restrict s"
-.Fa "const char *restrict format"
-.Fa "va_list arg"
-.Fc
+.Fn vfscanf "FILE * restrict stream" "const char * restrict format" "va_list ap"
 .Sh DESCRIPTION
 The
 .Fn scanf
 family of functions scans input according to a
-.Fa format ,
+.Fa format
 as described below.
 This format may contain
 .Em conversion specifiers ;
@@ -103,8 +87,7 @@ reads input from the stream pointer
 and
 .Fn sscanf
 reads its input from the character string pointed to by
-.Fa s .
-.Pp
+.Fa str .
 The
 .Fn vfscanf
 function
@@ -125,8 +108,7 @@ the
 .Fn vprintf
 and
 .Fn vsprintf
-functions, respectively.
-.Pp
+functions respectively.
 Each successive
 .Em pointer
 argument must correspond properly with
@@ -150,16 +132,10 @@ Scanning stops
 when an input character does not match such a format character.
 Scanning also stops
 when an input conversion cannot be made (see below).
-.Pp
-Extended locale versions of these functions are documented in
-.Xr scanf_l 3 .
-See
-.Xr xlocale 3
-for more information.
 .Sh CONVERSIONS
 Following the
 .Cm %
-character introducing a conversion,
+character introducing a conversion
 there may be a number of
 .Em flag
 characters, as follows:
@@ -439,8 +415,7 @@ Matches a pointer value (as printed by
 in
 .Xr printf 3 ) ;
 the next pointer must be a pointer to
-.Vt "void *"
-(or other pointer type).
+.Vt void .
 .It Cm n
 Nothing is expected;
 instead, the number of characters consumed thus far from the input
@@ -465,10 +440,13 @@ of
 causes an immediate return of
 .Dv EOF .
 .Sh RETURN VALUES
-These functions return the number of input items assigned.
-This can be fewer than provided for, or even zero,
-in the event of a matching failure.
-Zero indicates that, although there was input available,
+These
+functions
+return
+the number of input items assigned, which can be fewer than provided
+for, or even zero, in the event of a matching failure.
+Zero
+indicates that, while there was input available,
 no conversions were assigned;
 typically this is due to an invalid input character,
 such as an alphabetic character for a
@@ -485,7 +463,6 @@ the number of conversions which were successfully completed is returned.
 .Xr getc 3 ,
 .Xr mbrtowc 3 ,
 .Xr printf 3 ,
-.Xr scanf_l 3 ,
 .Xr strtod 3 ,
 .Xr strtol 3 ,
 .Xr strtoul 3 ,
@@ -496,7 +473,7 @@ The functions
 .Fn scanf ,
 .Fn sscanf ,
 .Fn vfscanf ,
-.Fn vscanf ,
+.Fn vscanf
 and
 .Fn vsscanf
 conform to

@@ -21,6 +21,8 @@
  * @APPLE_LICENSE_HEADER_END@
  */
  
+#undef __DARWIN_UNIX03
+#define __DARWIN_UNIX03	1
 #include <time.h>
 
 long timezone = 0;

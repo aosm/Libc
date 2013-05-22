@@ -13,6 +13,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -30,14 +34,13 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)strftime.3	8.1 (Berkeley) 6/4/93
-.\" $FreeBSD: src/lib/libc/stdtime/strftime.3,v 1.40 2008/05/16 04:33:04 grog Exp $
+.\" $FreeBSD: src/lib/libc/stdtime/strftime.3,v 1.34 2004/07/02 23:52:12 ru Exp $
 .\"
-.Dd November 4, 2004
+.Dd January 4, 2003
 .Dt STRFTIME 3
 .Os
 .Sh NAME
-.Nm strftime ,
-.Nm strftime_l
+.Nm strftime
 .Nd format date and time
 .Sh LIBRARY
 .Lb libc
@@ -45,20 +48,10 @@
 .In time.h
 .Ft size_t
 .Fo strftime
-.Fa "char *restrict s"
+.Fa "char * restrict buf"
 .Fa "size_t maxsize"
-.Fa "const char *restrict format"
-.Fa "const struct tm *restrict timeptr"
-.Fc
-.In time.h
-.In xlocale.h
-.Ft size_t
-.Fo strftime_l
-.Fa "char *restrict s"
-.Fa "size_t maxsize"
-.Fa "const char *restrict format"
-.Fa "const struct tm *restrict timeptr"
-.Fa "locale_t loc"
+.Fa "const char * restrict format"
+.Fa "const struct tm * restrict timeptr"
 .Fc
 .Sh DESCRIPTION
 The
@@ -66,7 +59,7 @@ The
 function formats the information from
 .Fa timeptr
 into the buffer
-.Fa s ,
+.Fa buf
 according to the string pointed to by
 .Fa format .
 .Pp
@@ -89,14 +82,6 @@ NUL character, is not more than
 returns the number of characters in the array, not counting the
 terminating NUL.
 Otherwise, zero is returned and the buffer contents are indeterminate.
-.Pp
-Although the
-.Fn strftime
-function uses the current locale, the
-.Fn strftime_l
-function may be passed a locale directly. See
-.Xr xlocale 3
-for more information.
 .Pp
 The conversion specifications are copied to the buffer after expansion
 as follows:-
@@ -121,7 +106,7 @@ is equivalent to
 .Dq Li %m/%d/%y .
 .It Cm %d
 is replaced by the day of the month as a decimal number (01-31).
-.It Cm %E* %O*
+.It Cm \&%E* Cm \&%O*
 POSIX locale extensions.
 The sequences
 %Ec %EC %Ex %EX %Ey %EY
@@ -130,11 +115,11 @@ The sequences
 are supposed to provide alternate
 representations.
 .Pp
-Additionally %OB implemented
+Additionly %OB implemented
 to represent alternative months names
 (used standalone, without day mentioned).
 .It Cm %e
-is replaced by the day of the month as a decimal number (1-31); single
+is replaced by the day of month as a decimal number (1-31); single
 digits are preceded by a blank.
 .It Cm \&%F
 is equivalent to
@@ -150,8 +135,7 @@ but as a decimal number without century (00-99).
 .It Cm \&%H
 is replaced by the hour (24-hour clock) as a decimal number (00-23).
 .It Cm %h
-the same as
-.Cm %b .
+the same as %b.
 .It Cm \&%I
 is replaced by the hour (12-hour clock) as a decimal number (01-12).
 .It Cm %j
@@ -168,14 +152,13 @@ is replaced by the minute as a decimal number (00-59).
 is replaced by the month as a decimal number (01-12).
 .It Cm %n
 is replaced by a newline.
-.It Cm %O*
-the same as
-.Cm %E* .
+.It Cm \&%O*
+the same as %E*.
 .It Cm %p
 is replaced by national representation of either
-"ante meridiem" (a.m.)
+"ante meridiem"
 or
-"post meridiem" (p.m.)
+"post meridiem"
 as appropriate.
 .It Cm \&%R
 is equivalent to
@@ -224,7 +207,7 @@ is replaced by the year with century as a decimal number.
 is replaced by the year without century as a decimal number (00-99).
 .It Cm \&%Z
 is replaced by the time zone name.
-.It Cm %z
+.It Cm \&%z
 is replaced by the time zone offset from UTC; a leading plus sign stands for
 east of UTC, a minus sign for west of UTC, hours and minutes follow
 with two digits each and no delimiter between them (common form for
@@ -233,15 +216,6 @@ RFC 822 date headers).
 is replaced by national representation of the date and time
 (the format is similar to that produced by
 .Xr date 1 ) .
-.It Cm %-*
-GNU libc extension.
-Do not do any padding when performing numerical outputs.
-.It Cm %_*
-GNU libc extension.
-Explicitly specify space for padding.
-.It Cm %0*
-GNU libc extension.
-Explicitly specify zero for padding.
 .It Cm %%
 is replaced by
 .Ql % .
@@ -252,8 +226,7 @@ is replaced by
 .Xr ctime 3 ,
 .Xr printf 3 ,
 .Xr strptime 3 ,
-.Xr wcsftime 3 ,
-.Xr xlocale 3
+.Xr wcsftime 3
 .Sh STANDARDS
 The
 .Fn strftime
@@ -280,12 +253,11 @@ with a lot of extensions including
 .Ql %u ,
 .Ql \&%V ,
 .Ql %z ,
-and
 .Ql %+ .
 .Pp
 The peculiar week number and year in the replacements of
 .Ql %G ,
-.Ql %g ,
+.Ql %g
 and
 .Ql \&%V
 are defined in ISO 8601: 1988.

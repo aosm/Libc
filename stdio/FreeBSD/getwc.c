@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD: src/lib/libc/stdio/getwc.c,v 1.3 2004/05/25 10:42:52 tjr Exp $");
 
-#include "xlocale_private.h"
-
 #include "namespace.h"
 #include <stdio.h>
 #include <wchar.h>
@@ -46,13 +44,5 @@ wint_t
 getwc(FILE *fp)
 {
 
-	return (fgetwc_l(fp, __current_locale()));
-}
-
-wint_t
-getwc_l(FILE *fp, locale_t loc)
-{
-
-	/* no need to call NORMALIZE_LOCALE(loc) because fgetwc_l will */
-	return (fgetwc_l(fp, loc));
+	return (fgetwc(fp));
 }

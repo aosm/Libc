@@ -1,8 +1,8 @@
 /*
- * Copyright (c) 1999-2010 Apple Inc. All rights reserved.
+ * Copyright (c) 1999 Apple Computer, Inc. All rights reserved.
  *
  * @APPLE_LICENSE_HEADER_START@
- *
+ * 
  * This file contains Original Code and/or Modifications of Original Code
  * as defined in and that are subject to the Apple Public Source License
  * Version 2.0 (the 'License'). You may not use this file except in
@@ -20,7 +20,6 @@
  * 
  * @APPLE_LICENSE_HEADER_END@
  */
-
 /*
  * Copyright (c) 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -54,13 +53,22 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/syslog.h>
+#include <sys/uio.h>
+#include <sys/un.h>
+#include <netdb.h>
+
+#include <errno.h>
+#include <fcntl.h>
+#include <paths.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
-#include <pthread.h>
-#include <asl.h>
-#include "asl_private.h"
+#include <time.h>
+#include <unistd.h>
+#include <notify.h>
 
 #ifdef __STDC__
 #include <stdarg.h>
@@ -68,24 +76,40 @@
 #include <varargs.h>
 #endif
 
+#include <crt_externs.h>
+
 #define	LOG_NO_NOTIFY	0x1000
-extern const char *asl_syslog_faciliy_num_to_name(int n);
 
 #ifdef BUILDING_VARIANT
-__private_extern__ pthread_mutex_t _sl_lock;
-__private_extern__ aslclient _sl_asl;
-__private_extern__ char *_sl_ident;
-__private_extern__ int _sl_fac;
-__private_extern__ int _sl_opts;
-__private_extern__ int _sl_mask;
+__private_extern__ int	_sl_LogFile;		/* fd for log */
+__private_extern__ int	_sl_connected;		/* have done connect */
+__private_extern__ int	_sl_LogStat;		/* status bits, set by openlog() */
+__private_extern__ const char *_sl_LogTag;	/* string to tag the entry with */
+__private_extern__ int	_sl_LogFacility;	/* default facility code */
+__private_extern__ int	_sl_LogMask;		/* mask of priorities to be logged */
+__private_extern__ int  _sl_NotifyToken;	/* for remote control of priority filter */
+__private_extern__ int  _sl_NotifyMaster;	/* for remote control of priority filter */
 #else /* !BUILDING_VARIANT */
-__private_extern__ pthread_mutex_t _sl_lock = PTHREAD_MUTEX_INITIALIZER;
-__private_extern__ aslclient _sl_asl = NULL;
-__private_extern__ char *_sl_ident = NULL;
-__private_extern__ int _sl_fac = 0;
-__private_extern__ int _sl_opts = 0;
-__private_extern__ int _sl_mask = 0;
+__private_extern__ int	_sl_LogFile = -1;		/* fd for log */
+__private_extern__ int	_sl_connected = 0;		/* have done connect */
+__private_extern__ int	_sl_LogStat = 0;		/* status bits, set by openlog() */
+__private_extern__ const char *_sl_LogTag = NULL;	/* string to tag the entry with */
+__private_extern__ int	_sl_LogFacility = LOG_USER;	/* default facility code */
+__private_extern__ int	_sl_LogMask = 0xff;		/* mask of priorities to be logged */
+__private_extern__ int  _sl_NotifyToken = -1;	/* for remote control of max logged priority */
+__private_extern__ int  _sl_NotifyMaster = -1;	/* for remote control of max logged priority */
 #endif /* BUILDING_VARIANT */
+
+__private_extern__ void _sl_init_notify();
+
+#define NOTIFY_SYSTEM_MASTER "com.apple.system.syslog.master"
+#define NOTIFY_PREFIX_SYSTEM "com.apple.system.syslog"
+#define NOTIFY_PREFIX_USER "user.syslog"
+#define NOTIFY_STATE_OFFSET 1000
+
+/* notify SPI */
+uint32_t notify_get_state(int token, int *state);
+uint32_t notify_register_plain(const char *name, int *out_token);
 
 /*
  * syslog, vsyslog --
@@ -113,95 +137,287 @@ syslog(pri, fmt, va_alist)
 }
 
 void
-vsyslog(int pri, const char *fmt, va_list ap)
+vsyslog(pri, fmt, ap)
+	int pri;
+	register const char *fmt;
+	va_list ap;
 {
-	int fac;
-	aslmsg facmsg;
-	const char *facility;
-
-	facmsg = NULL;
-	fac = pri & LOG_FACMASK;
-	if (fac != 0)
+	register int cnt;
+	register char ch, *p, *t;
+	time_t now;
+	int fd, saved_errno, filter, cval, rc_filter, primask;
+#define	TBUF_LEN	2048
+#define	FMT_LEN		1024
+	char *stdp, tbuf[TBUF_LEN], fmt_cpy[FMT_LEN];
+	int tbuf_left, fmt_left, prlen;
+	
+#define	INTERNALLOG	LOG_ERR|LOG_CONS|LOG_PERROR|LOG_PID
+	/* Check for invalid bits. */
+	if (pri & ~(LOG_PRIMASK|LOG_FACMASK))
 	{
-		facility = asl_syslog_faciliy_num_to_name(fac);
-		if (facility != NULL)
+		syslog(INTERNALLOG, "syslog: unknown facility/priority: %x", pri);
+		pri &= LOG_PRIMASK|LOG_FACMASK;
+	}
+
+	/* Get remote-control priority filter */
+	filter = _sl_LogMask;
+	rc_filter = 0;
+
+	_sl_init_notify();
+
+	if (_sl_NotifyToken >= 0) 
+	{
+		if (notify_get_state(_sl_NotifyToken, &cval) == NOTIFY_STATUS_OK)
 		{
-			facmsg = asl_new(ASL_TYPE_MSG);
-			asl_set(facmsg, ASL_KEY_FACILITY, facility);
+			if (cval != 0)
+			{
+				filter = cval;
+				rc_filter = 1;
+			}
 		}
 	}
 
-	asl_vlog(_sl_asl, facmsg, LOG_PRI(pri), fmt, ap);
-	if (facmsg != NULL) asl_free(facmsg);
+	if ((rc_filter == 0) && (_sl_NotifyMaster >= 0))
+	{
+		if (notify_get_state(_sl_NotifyMaster, &cval) == NOTIFY_STATUS_OK)
+		{
+			if (cval != 0)
+			{
+				filter = cval;
+			}
+		}
+	}
+
+	primask = LOG_MASK(LOG_PRI(pri));
+	if ((primask & filter) == 0) return;
+
+	saved_errno = errno;
+
+	/* Set default facility if none specified. */
+	if ((pri & LOG_FACMASK) == 0) pri |= _sl_LogFacility;
+
+	/* Build the message. */
+	
+	/*
+ 	 * Although it's tempting, we can't ignore the possibility of
+	 * overflowing the buffer when assembling the "fixed" portion
+	 * of the message.  Strftime's "%h" directive expands to the
+	 * locale's abbreviated month name, but if the user has the
+	 * ability to construct to his own locale files, it may be
+	 * arbitrarily long.
+	 */
+	(void)time(&now);
+
+	p = tbuf;  
+	tbuf_left = TBUF_LEN;
+	
+#define	DEC()	\
+	do {					\
+		if (prlen >= tbuf_left)		\
+			prlen = tbuf_left - 1;	\
+		p += prlen;			\
+		tbuf_left -= prlen;		\
+	} while (0)
+
+	prlen = snprintf(p, tbuf_left, "<%d>", pri);
+	DEC();
+
+	prlen = strftime(p, tbuf_left, "%h %e %T ", localtime(&now));
+	DEC();
+
+	if (_sl_LogStat & LOG_PERROR) stdp = p;
+
+	if (_sl_LogTag == NULL) _sl_LogTag = *(*_NSGetArgv());
+
+	if (_sl_LogTag != NULL) 
+	{
+		prlen = snprintf(p, tbuf_left, "%s", _sl_LogTag);
+		DEC();
+	}
+
+	if (_sl_LogStat & LOG_PID)
+	{
+		prlen = snprintf(p, tbuf_left, "[%d]", getpid());
+		DEC();
+	}
+
+	if (_sl_LogTag != NULL)
+	{
+		if (tbuf_left > 1)
+		{
+			*p++ = ':';
+			tbuf_left--;
+		}
+		if (tbuf_left > 1)
+		{
+			*p++ = ' ';
+			tbuf_left--;
+		}
+	}
+
+	/* 
+	 * We wouldn't need this mess if printf handled %m, or if 
+	 * strerror() had been invented before syslog().
+	 */
+	for (t = fmt_cpy, fmt_left = FMT_LEN; (ch = *fmt); ++fmt)
+	{
+		if (ch == '%' && fmt[1] == 'm')
+		{
+			++fmt;
+			prlen = snprintf(t, fmt_left, "%s", strerror(saved_errno));
+			if (prlen >= fmt_left) prlen = fmt_left - 1;
+			t += prlen;
+			fmt_left -= prlen;
+		}
+		else
+		{
+			if (fmt_left > 1)
+			{
+				*t++ = ch;
+				fmt_left--;
+			}
+		}
+	}
+
+	*t = '\0';
+
+	prlen = vsnprintf(p, tbuf_left, fmt_cpy, ap);
+	DEC();
+	cnt = p - tbuf;
+
+	/* Output to stderr if requested. */
+	if (_sl_LogStat & LOG_PERROR)
+	{
+		struct iovec iov[2];
+
+		iov[0].iov_base = stdp;
+		iov[0].iov_len = cnt - (stdp - tbuf);
+		iov[1].iov_base = "\n";
+		iov[1].iov_len = 1;
+		(void)writev(STDERR_FILENO, iov, 2);
+	}
+
+	/* Get connected, output the message to the local logger. */
+	if (_sl_connected == 0) openlog(_sl_LogTag, _sl_LogStat | LOG_NDELAY, 0);
+	if (send(_sl_LogFile, tbuf, cnt, 0) >= 0) return;
+
+	/*
+	 * Output the message to the console; don't worry about blocking,
+	 * if console blocks everything will.  Make sure the error reported
+	 * is the one from the syslogd failure.
+	 */
+	if (_sl_LogStat & LOG_CONS && (fd = open(_PATH_CONSOLE, O_WRONLY, 0)) >= 0)
+	{
+		struct iovec iov[2];
+		
+		p = strchr(tbuf, '>') + 1;
+		iov[0].iov_base = p;
+		iov[0].iov_len = cnt - (p - tbuf);
+		iov[1].iov_base = "\r\n";
+		iov[1].iov_len = 2;
+		(void)writev(fd, iov, 2);
+		(void)close(fd);
+	}
 }
 
 #ifndef BUILDING_VARIANT
 
-void
-openlog(const char *ident, int opts, int logfac)
+static struct sockaddr_un SyslogAddr;	/* AF_UNIX address of local logger */
+
+__private_extern__ void
+_sl_init_notify()
 {
-	const char *facility;
-	uint32_t asl_opts;
+	int status;
+	char *notify_name;
+	const char *prefix;
+	
+	if (_sl_LogStat & LOG_NO_NOTIFY)
+	{
+		_sl_NotifyMaster = -2;
+		_sl_NotifyToken = -2;
+		return;
+	}
+	
+	if (_sl_NotifyMaster == -1)
+	{
+		status = notify_register_plain(NOTIFY_SYSTEM_MASTER, &_sl_NotifyMaster);
+		if (status != NOTIFY_STATUS_OK) _sl_NotifyMaster = -2;
+	}
+	
+	if (_sl_NotifyToken == -1)
+	{
+		_sl_NotifyToken = -2;
+		
+		notify_name = NULL;
+		prefix = NOTIFY_PREFIX_USER;
+		if (getuid() == 0) prefix = NOTIFY_PREFIX_SYSTEM;
+		asprintf(&notify_name, "%s.%d", prefix, getpid());
+		
+		if (notify_name != NULL)
+		{
+			status = notify_register_plain(notify_name, &_sl_NotifyToken);
+			free(notify_name);
+			if (status != NOTIFY_STATUS_OK) _sl_NotifyToken = -2;
+		}
+	}
+}
 
-	pthread_mutex_lock(&_sl_lock);
+void
+openlog(ident, logstat, logfac)
+	const char *ident;
+	int logstat, logfac;
+{
+	if (ident != NULL) _sl_LogTag = ident;
 
-	/* close existing aslclient */
-	if (_sl_asl != NULL) asl_close(_sl_asl);
-	_sl_asl = NULL;
+	_sl_LogStat = logstat;
 
-	if (_sl_ident != NULL) free(_sl_ident);
-	_sl_ident = NULL;
+	if (logfac != 0 && (logfac &~ LOG_FACMASK) == 0) _sl_LogFacility = logfac;
 
-	/* open with specified parameters */
+	if (_sl_LogFile == -1)
+	{
+		SyslogAddr.sun_family = AF_UNIX;
+		(void)strncpy(SyslogAddr.sun_path, _PATH_LOG, sizeof(SyslogAddr.sun_path));
+		if (_sl_LogStat & LOG_NDELAY)
+		{
+			if ((_sl_LogFile = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1) return;
+			(void)fcntl(_sl_LogFile, F_SETFD, 1);
+		}
+	}
 
-	if (ident != NULL) _sl_ident = strdup(ident);
-	/* NB we allow the strdup to fail silently */
+	if ((_sl_LogFile != -1) && (_sl_connected == 0))
+	{
+		if (connect(_sl_LogFile, (struct sockaddr *)&SyslogAddr, sizeof(SyslogAddr)) == -1)
+		{
+			(void)close(_sl_LogFile);
+			_sl_LogFile = -1;
+		}
+		else
+		{
+			_sl_connected = 1;
+		}
+	}
 
-	_sl_fac = logfac;
-	facility = asl_syslog_faciliy_num_to_name(_sl_fac);
-
-	_sl_opts = opts;
-	asl_opts = ASL_OPT_SYSLOG_LEGACY;
-
-	if (_sl_opts & LOG_NO_NOTIFY) asl_opts |= ASL_OPT_NO_REMOTE;
-	if (_sl_opts & LOG_PERROR) asl_opts |= ASL_OPT_STDERR;
-
-	_sl_mask = ASL_FILTER_MASK_UPTO(ASL_LEVEL_DEBUG);
-
-	_sl_asl = asl_open(_sl_ident, facility, asl_opts);
-	asl_set_filter(_sl_asl, _sl_mask);
-
-	pthread_mutex_unlock(&_sl_lock);
+	_sl_init_notify();
 }
 
 void
 closelog()
 {
-	pthread_mutex_lock(&_sl_lock);
-
-	if (_sl_asl != NULL) asl_close(_sl_asl);
-	_sl_asl = NULL;
-
-	if (_sl_ident != NULL) free(_sl_ident);
-	_sl_ident = NULL;
-
-	pthread_mutex_unlock(&_sl_lock);
+	(void)close(_sl_LogFile);
+	_sl_LogFile = -1;
+	_sl_connected = 0;
 }
 
 /* setlogmask -- set the log mask level */
 int
-setlogmask(int mask)
+setlogmask(pmask)
+	int pmask;
 {
-	int oldmask;
+	int omask;
 
-	pthread_mutex_lock(&_sl_lock);
-
-	_sl_mask = mask;
-	oldmask = asl_set_filter(_sl_asl, mask);
-
-	pthread_mutex_unlock(&_sl_lock);
-
-	return oldmask;
+	omask = _sl_LogMask;
+	if (pmask != 0) _sl_LogMask = pmask;
+	return (omask);
 }
 
 #endif /* !BUILDING_VARIANT */

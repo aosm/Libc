@@ -1,5 +1,25 @@
-/*	$NetBSD: tftp.h,v 1.8 2003/08/07 09:44:12 agc Exp $	*/
-
+/*
+ * Copyright (c) 2000 Apple Computer, Inc. All rights reserved.
+ *
+ * @APPLE_LICENSE_HEADER_START@
+ * 
+ * This file contains Original Code and/or Modifications of Original Code
+ * as defined in and that are subject to the Apple Public Source License
+ * Version 2.0 (the 'License'). You may not use this file except in
+ * compliance with the License. Please obtain a copy of the License at
+ * http://www.opensource.apple.com/apsl/ and read it before using this
+ * file.
+ * 
+ * The Original Code and all software distributed under the License are
+ * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
+ * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
+ * INCLUDING WITHOUT LIMITATION, ANY WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
+ * Please see the License for the specific language governing rights and
+ * limitations under the License.
+ * 
+ * @APPLE_LICENSE_HEADER_END@
+ */
 /*
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -12,7 +32,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,17 +55,13 @@
  *	@(#)tftp.h	8.1 (Berkeley) 6/2/93
  */
 
-#ifndef _ARPA_TFTP_H_
-#define	_ARPA_TFTP_H_
+#ifndef _TFTP_H_
+#define	_TFTP_H_
 
 /*
  * Trivial File Transfer Protocol (IEN-133)
  */
-#define	SEGSIZE		512	/* data segment size */
-#define	MAXSEGSIZE	65464	/* maximum negotiated data segment size */
-
-#define PKTSIZE		SEGSIZE + 4
-#define MAXPKTSIZE	MAXSEGSIZE + 4
+#define	SEGSIZE		512		/* data segment size */
 
 /*
  * Packet types.
@@ -51,13 +71,12 @@
 #define	DATA	03			/* data packet */
 #define	ACK	04			/* acknowledgement */
 #define	ERROR	05			/* error code */
-#define	OACK	06			/* option acknowledgement */
 
 struct	tftphdr {
-	short	th_opcode;		/* packet type */
+	unsigned short	th_opcode;		/* packet type */
 	union {
-		unsigned short tu_block; /* block # */
-		short	tu_code;	/* error code */
+		unsigned short	tu_block;	/* block # */
+		unsigned short	tu_code;	/* error code */
 		char	tu_stuff[1];	/* request packet stuff */
 	} th_u;
 	char	th_data[1];		/* data or error string */
@@ -79,6 +98,5 @@ struct	tftphdr {
 #define	EBADID		5		/* unknown transfer ID */
 #define	EEXISTS		6		/* file already exists */
 #define	ENOUSER		7		/* no such user */
-#define	EOPTNEG		8		/* option negotiation failed */
 
-#endif /* _ARPA_TFTP_H_ */
+#endif /* !_TFTP_H_ */

@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,47 +35,15 @@
 static char sccsid[] = "@(#)daemon.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gen/daemon.c,v 1.8 2007/01/09 00:27:53 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/gen/daemon.c,v 1.6 2003/11/10 22:01:42 ghelmer Exp $");
 
-#ifndef VARIANT_PRE1050
-#include <mach/mach.h>
-#include <servers/bootstrap.h>
-#endif /* !VARIANT_PRE1050 */
 #include "namespace.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
-#include <stdlib.h>
 #include <signal.h>
 #include <unistd.h>
 #include "un-namespace.h"
-
-#ifndef VARIANT_PRE1050
-static void
-move_to_root_bootstrap(void)
-{
-	mach_port_t parent_port = 0;
-	mach_port_t previous_port = 0;
-
-	do {
-		if (previous_port) {
-			mach_port_deallocate(mach_task_self(), previous_port);
-			previous_port = parent_port;
-		} else {
-			previous_port = bootstrap_port;
-		}
-
-		if (bootstrap_parent(previous_port, &parent_port) != 0) {
-			return;
-		}
-	} while (parent_port != previous_port);
-
-	task_set_bootstrap_port(mach_task_self(), parent_port);
-	bootstrap_port = parent_port;
-}
-#endif /* !VARIANT_PRE1050 */
-
-int daemon(int, int) __DARWIN_1050(daemon);
 
 int
 daemon(nochdir, noclose)
@@ -88,9 +60,7 @@ daemon(nochdir, noclose)
 	sa.sa_handler = SIG_IGN;
 	sa.sa_flags = 0;
 	osa_ok = _sigaction(SIGHUP, &sa, &osa);
-#ifndef VARIANT_PRE1050
-	move_to_root_bootstrap();
-#endif /* !VARIANT_PRE1050 */
+
 	switch (fork()) {
 	case -1:
 		return (-1);

@@ -13,6 +13,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -30,7 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)setbuf.3	8.1 (Berkeley) 6/4/93
-.\" $FreeBSD: src/lib/libc/stdio/setbuf.3,v 1.17 2007/01/09 00:28:07 imp Exp $
+.\" $FreeBSD: src/lib/libc/stdio/setbuf.3,v 1.15 2004/08/24 21:48:21 alfred Exp $
 .\"
 .Dd June 4, 1993
 .Dt SETBUF 3
@@ -46,37 +50,21 @@
 .Sh SYNOPSIS
 .In stdio.h
 .Ft void
-.Fo setbuf
-.Fa "FILE *restrict stream"
-.Fa "char *restrict buf"
-.Fc
+.Fn setbuf "FILE * restrict stream" "char * restrict buf"
 .Ft void
-.Fo setbuffer
-.Fa "FILE *stream"
-.Fa "char *buf"
-.Fa "int size"
-.Fc
+.Fn setbuffer "FILE *stream" "char *buf" "int size"
 .Ft int
-.Fo setlinebuf
-.Fa "FILE *stream"
-.Fc
+.Fn setlinebuf "FILE *stream"
 .Ft int
-.Fo setvbuf
-.Fa "FILE *restrict stream"
-.Fa "char *restrict buf"
-.Fa "int type"
-.Fa "size_t size"
-.Fc
+.Fn setvbuf "FILE * restrict stream" "char * restrict buf" "int mode" "size_t size"
 .Sh DESCRIPTION
-Three types of buffering are available:
-unbuffered, block buffered, and line buffered.
+The three types of buffering available are unbuffered, block buffered,
+and line buffered.
 When an output stream is unbuffered, information appears on the
 destination file or terminal as soon as written;
-when it is block buffered,
-many characters are saved up and written as a block;
-when it is line buffered,
-characters are saved up until a newline is output
-or input is read from any stream attached to a terminal device
+when it is block buffered many characters are saved up and written as a block;
+when it is line buffered characters are saved up until a newline is
+output or input is read from any stream attached to a terminal device
 (typically
 .Dv stdin ) .
 The function
@@ -85,16 +73,17 @@ may be used to force the block out early.
 (See
 .Xr fclose 3 . )
 .Pp
-Normally, all files are block buffered.
+Normally all files are block buffered.
 When the first
 .Tn I/O
 operation occurs on a file,
 .Xr malloc 3
-is called and an optimally-sized buffer is obtained.
+is called,
+and an optimally-sized buffer is obtained.
 If a stream refers to a terminal
 (as
 .Dv stdout
-normally does), it is line buffered.
+normally does) it is line buffered.
 The standard error stream
 .Dv stderr
 is always unbuffered.
@@ -104,7 +93,7 @@ The
 function
 may be used to alter the buffering behavior of a stream.
 The
-.Fa type
+.Fa mode
 argument must be one of the following three macros:
 .Bl -tag -width _IOFBF -offset indent
 .It Dv _IONBF
@@ -128,9 +117,7 @@ bytes long;
 this buffer will be used instead of the current buffer.
 If
 .Fa buf
-is not
-.Dv NULL ,
-it is the caller's responsibility to
+is not NULL, it is the caller's responsibility to
 .Xr free 3
 this buffer after closing the stream.
 (If the

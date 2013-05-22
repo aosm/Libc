@@ -1,4 +1,3 @@
-/*	$NetBSD: lockf.c,v 1.3 2008/04/28 20:22:59 martin Exp $	*/
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -14,6 +13,13 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *        This product includes software developed by the NetBSD
+ *        Foundation, Inc. and its contributors.
+ * 4. Neither the name of The NetBSD Foundation nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -28,15 +34,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*	$NetBSD: lockf.c,v 1.1 1997/12/20 20:23:18 kleink Exp $	*/
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gen/lockf.c,v 1.10 2009/03/04 01:01:26 delphij Exp $");
-
-#ifdef VARIANT_CANCELABLE
-int __fcntl(int, int, void *);
-#else /* !VARIANT_CANCELABLE */
-int __fcntl_nocancel(int, int, void *);
-#endif /* VARIANT_CANCELABLE */
-
+__FBSDID("$FreeBSD: src/lib/libc/gen/lockf.c,v 1.8 2002/02/01 00:57:29 obrien Exp $");
 
 #include "namespace.h"
 #include <errno.h>
@@ -45,7 +45,10 @@ int __fcntl_nocancel(int, int, void *);
 #include "un-namespace.h"
 
 int
-lockf(int filedes, int function, off_t size)
+lockf(filedes, function, size)
+	int filedes;
+	int function;
+	off_t size;
 {
 	struct flock fl;
 	int cmd;
@@ -69,13 +72,8 @@ lockf(int filedes, int function, off_t size)
 		break;
 	case F_TEST:
 		fl.l_type = F_WRLCK;
-#ifdef VARIANT_CANCELABLE
-		if (__fcntl(filedes, F_GETLK, &fl) == -1)
+		if (_fcntl(filedes, F_GETLK, &fl) == -1)
 			return (-1);
-#else /* !VARIANT_CANCELABLE */
-		if (__fcntl_nocancel(filedes, F_GETLK, &fl) == -1)
-			return (-1);
-#endif /* VARIANT_CANCELABLE */
 		if (fl.l_type == F_UNLCK || fl.l_pid == getpid())
 			return (0);
 		errno = EAGAIN;
@@ -87,10 +85,5 @@ lockf(int filedes, int function, off_t size)
 		/* NOTREACHED */
 	}
 
-#ifdef VARIANT_CANCELABLE
-	return (__fcntl(filedes, cmd, &fl));
-#else /* !VARIANT_CANCELABLE */
-	return (__fcntl_nocancel(filedes, cmd, &fl));
-#endif /* VARIANT_CANCELABLE */
+	return (_fcntl(filedes, cmd, &fl));
 }
-

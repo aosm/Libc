@@ -32,4 +32,5 @@ ___pthread_set_self:
 	movl    $3,%eax
 	MACHDEP_SYSCALL_TRAP
 	addl    $8,%esp     
+	movw    %ax,%gs
 	ret

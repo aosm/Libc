@@ -13,6 +13,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -31,18 +35,18 @@
 .\"
 .\"     @(#)scanf.3	8.2 (Berkeley) 12/11/93
 .\" FreeBSD: src/lib/libc/stdio/scanf.3,v 1.24 2003/06/28 09:03:25 das Exp
-.\" $FreeBSD: src/lib/libc/stdio/wscanf.3,v 1.7 2007/01/09 00:28:08 imp Exp $
+.\" $FreeBSD: src/lib/libc/stdio/wscanf.3,v 1.6 2003/07/05 07:47:55 tjr Exp $
 .\"
 .Dd July 5, 2003
 .Dt WSCANF 3
 .Os
 .Sh NAME
+.Nm wscanf ,
 .Nm fwscanf ,
 .Nm swscanf ,
-.Nm vfwscanf ,
-.Nm vswscanf ,
 .Nm vwscanf ,
-.Nm wscanf
+.Nm vswscanf ,
+.Nm vfwscanf
 .Nd wide character input format conversion
 .Sh LIBRARY
 .Lb libc
@@ -50,46 +54,22 @@
 .In stdio.h
 .In wchar.h
 .Ft int
-.Fo fwscanf
-.Fa "FILE *restrict stream"
-.Fa "const wchar_t *restrict format"
-.Fa ...
-.Fc
+.Fn wscanf "const wchar_t * restrict format" ...
 .Ft int
-.Fo swscanf
-.Fa "const wchar_t *restrict ws"
-.Fa "const wchar_t *restrict format"
-.Fa ...
-.Fc
+.Fn fwscanf "FILE * restrict stream" "const wchar_t * restrict format" ...
 .Ft int
-.Fo wscanf
-.Fa "const wchar_t *restrict format"
-.Fa ...
-.Fc
+.Fn swscanf "const wchar_t * restrict str" "const wchar_t * restrict format" ...
 .In stdarg.h
-.In stdio.h
-.In wchar.h
 .Ft int
-.Fo vfwscanf
-.Fa "FILE *restrict stream"
-.Fa "const wchar_t *restrict format"
-.Fa "va_list arg"
-.Fc
+.Fn vwscanf "const wchar_t * restrict format" "va_list ap"
 .Ft int
-.Fo vswscanf
-.Fa "const wchar_t *restrict ws"
-.Fa "const wchar_t *restrict format"
-.Fa "va_list arg"
-.Fc
+.Fn vswscanf "const wchar_t * restrict str" "const wchar_t * restrict format" "va_list ap"
 .Ft int
-.Fo vwscanf
-.Fa "const wchar_t *restrict format"
-.Fa "va_list arg"
-.Fc
+.Fn vfwscanf "FILE * restrict stream" "const wchar_t * restrict format" "va_list ap"
 .Sh DESCRIPTION
 The
 .Fn wscanf
-family of functions scans input, according to a
+family of functions scans input according to a
 .Fa format
 as described below.
 This format may contain
@@ -109,8 +89,7 @@ reads input from the stream pointer
 and
 .Fn swscanf
 reads its input from the wide character string pointed to by
-.Fa ws .
-.Pp
+.Fa str .
 The
 .Fn vfwscanf
 function
@@ -142,7 +121,6 @@ conversion below).
 All conversions are introduced by the
 .Cm %
 (percent sign) character.
-.Pp
 The
 .Fa format
 string
@@ -156,16 +134,10 @@ Scanning stops
 when an input character does not match such a format character.
 Scanning also stops
 when an input conversion cannot be made (see below).
-.Pp
-Extended locale versions of these functions are documented in
-.Xr wscanf_l 3 .
-See
-.Xr xlocale 3
-for more information.
 .Sh CONVERSIONS
 Following the
 .Cm %
-character introducing a conversion,
+character introducing a conversion
 there may be a number of
 .Em flag
 characters, as follows:
@@ -461,12 +433,15 @@ of
 causes an immediate return of
 .Dv EOF .
 .Sh RETURN VALUES
-These functions return the number of input items assigned,
-which can be fewer than provided for, or even zero,
-in the event of a matching failure.
-Zero indicates that, while there was input available,
+These
+functions
+return
+the number of input items assigned, which can be fewer than provided
+for, or even zero, in the event of a matching failure.
+Zero
+indicates that, while there was input available,
 no conversions were assigned;
-typically, this is due to an invalid input character,
+typically this is due to an invalid input character,
 such as an alphabetic character for a
 .Ql %d
 conversion.
@@ -484,15 +459,14 @@ the number of conversions which were successfully completed is returned.
 .Xr wcstod 3 ,
 .Xr wcstol 3 ,
 .Xr wcstoul 3 ,
-.Xr wprintf 3 ,
-.Xr wscanf_l 3
+.Xr wprintf 3
 .Sh STANDARDS
 The
 .Fn fwscanf ,
 .Fn wscanf ,
 .Fn swscanf ,
 .Fn vfwscanf ,
-.Fn vwscanf ,
+.Fn vwscanf
 and
 .Fn vswscanf
 functions

@@ -1,4 +1,4 @@
-.\" Copyright (c) 2006 Apple Computer, Inc.  All rights reserved.
+.\" Copyright (c) 2002 Apple Computer, Inc.  All rights reserved.
 .\"
 .\" @APPLE_LICENSE_HEADER_START@
 .\"
@@ -18,46 +18,30 @@
 .\"
 .\" @APPLE_LICENSE_HEADER_END@
 .\"
-.Dd Aug 13, 2008
+.Dd November 21, 2002
 .Dt MALLOC 3
 .Os
 .Sh NAME
-.Nm calloc ,
-.Nm free ,
-.Nm malloc ,
-.Nm realloc ,
-.Nm reallocf ,
-.Nm valloc
+.Nm malloc , calloc , valloc , realloc , reallocf , free , malloc_size , malloc_good_size
 .Nd memory allocation
 .Sh SYNOPSIS
 .In stdlib.h
 .Ft void *
-.Fo calloc
-.Fa "size_t count"
-.Fa "size_t size"
-.Fc
+.Fn malloc "size_t size"
+.Ft void *
+.Fn calloc "size_t count" "size_t size"
+.Ft void *
+.Fn valloc "size_t size"
+.Ft void *
+.Fn realloc "void *ptr" "size_t size"
+.Ft void *
+.Fn reallocf "void *ptr" "size_t size"
 .Ft void
-.Fo free
-.Fa "void *ptr"
-.Fc
-.Ft void *
-.Fo malloc
-.Fa "size_t size"
-.Fc
-.Ft void *
-.Fo realloc
-.Fa "void *ptr"
-.Fa "size_t size"
-.Fc
-.Ft void *
-.Fo reallocf
-.Fa "void *ptr"
-.Fa "size_t size"
-.Fc
-.Ft void *
-.Fo valloc
-.Fa "size_t size"
-.Fc
+.Fn free "void *ptr"
+.Ft size_t
+.Fn malloc_size "void *ptr"
+.Ft size_t
+.Fn malloc_good_size "size_t size"
 .Sh DESCRIPTION
 The
 .Fn malloc ,
@@ -68,17 +52,27 @@ and
 .Fn reallocf
 functions allocate memory.
 The allocated memory is aligned such that it can be used for any data type,
-including AltiVec- and SSE-related types.
+including AltiVec-related types.
 The
 .Fn free
 function frees allocations that were created via the preceding allocation
 functions.
+The
+.Fn malloc_size
+and
+.Fn malloc_good_size
+functions provide information related to the amount of padding space at the end
+of allocations.
 .Pp
 The
 .Fn malloc
 function allocates
 .Fa size
 bytes of memory and returns a pointer to the allocated memory.
+.Fn malloc
+returns a
+.Dv NULL
+pointer if there is an error.
 .Pp
 The
 .Fn calloc
@@ -88,6 +82,10 @@ objects that are
 .Fa size
 bytes of memory each and returns a pointer to the allocated memory.
 The allocated memory is filled with bytes of value zero.
+.Fn calloc
+returns a
+.Dv NULL
+pointer if there is an error.
 .Pp
 The
 .Fn valloc
@@ -95,6 +93,10 @@ function allocates
 .Fa size
 bytes of memory and returns a pointer to the allocated memory.
 The allocated memory is aligned on a page boundary.
+.Fn valloc
+returns a
+.Dv NULL
+pointer if there is an error.
 .Pp
 The
 .Fn realloc
@@ -102,7 +104,7 @@ function tries to change the size of the allocation pointed to by
 .Fa ptr
 to
 .Fa size ,
-and returns
+and return
 .Fa ptr .
 If there is not enough room to enlarge the memory allocation pointed to by
 .Fa ptr ,
@@ -111,25 +113,12 @@ creates a new allocation, copies as much of the old data pointed to by
 .Fa ptr
 as will fit to the new allocation, frees the old allocation, and returns a
 pointer to the allocated memory.
-If
-.Fa ptr
-is 
-.Dv NULL ,
 .Fn realloc
-is identical to a call to 
-.Fn malloc
-for 
-.Fa size
-bytes.
-If
-.Fa size
-is zero and 
+returns a
+.Dv NULL
+pointer if there is an error, and the allocation pointed to by
 .Fa ptr
-is not 
-.Dv NULL ,
-a new, minimum sized object is allocated and the original object is freed.
-When extending a region allocated with calloc(3), realloc(3) does not guarantee 
-that the additional memory is also zero-filled.
+is still valid.
 .Pp
 The
 .Fn reallocf
@@ -145,15 +134,26 @@ for realloc causing memory leaks in libraries.
 The
 .Fn free
 function deallocates the memory allocation pointed to by
-.Fa ptr .  If
-.Fa ptr 
-is a NULL pointer, no operation is performed.
+.Fa ptr .
+.Pp
+The
+.Fn malloc_size
+function
+returns the size of the memory block that backs the allocation pointed to by
+.Fa ptr .
+The memory block size is always at least as large as the allocation it backs,
+and may be larger.
+.Pp
+The
+.Fn malloc_good_size
+function rounds
+.Fa size
+up to a value that the allocator implementation can allocate without adding any
+padding and returns that rounded up value.
 .Sh RETURN VALUES
-If successful,
-.Fn calloc ,
+If successful, the
 .Fn malloc ,
-.Fn realloc ,
-.Fn reallocf ,
+.Fn calloc ,
 and
 .Fn valloc
 functions return a pointer to allocated memory.
@@ -164,12 +164,17 @@ pointer and set
 to
 .Er ENOMEM .
 .Pp
-For
-.Fn realloc ,
-the input pointer is still valid if reallocation failed.
-For
-.Fn reallocf ,
-the input pointer will have been freed if reallocation failed.
+If successful, the
+.Fn realloc
+and
+.Fn reallocf
+functions return a pointer to allocated memory.
+If there is an error, it returns a
+.Dv NULL
+pointer and sets
+.Va errno
+to
+.Er ENOMEM .
 .Pp
 The
 .Fn free
@@ -207,13 +212,12 @@ can be used.
 If set, record all stacks in a manner that is compatible with the
 .Nm malloc_history
 program.
-.It Ev MallocStackLoggingDirectory
-If set, records stack logs to the directory specified instead of saving them to the default location (/tmp).
-.It Ev MallocScribble
+.It Ev MallocPreScribble
 If set, fill memory that has been allocated with 0xaa bytes.
-This increases the likelihood that a program making assumptions about the contents of
-freshly allocated memory will fail.
-Also if set, fill memory that has been deallocated with 0x55 bytes.
+This increases the likelihood that a program making assumptions about the
+contents of freshly allocated memory will fail.
+.It Ev MallocScribble
+If set, fill memory that has been deallocated with 0x55 bytes.
 This increases the likelihood that a program will fail due to accessing memory
 that is no longer allocated.
 .It Ev MallocCheckHeapStart <s>
@@ -250,23 +254,12 @@ When
 is set and this is set to a non-zero value, causes
 .Xr abort 3
 to be called if a heap corruption is detected, instead of any sleeping.
-.It Ev MallocErrorAbort
-If set, causes
+.It Ev MallocBadFreeAbort <b>
+If set to a non-zero value, causes
 .Xr abort 3
-to be called if an error was encountered in
-.Xr malloc 3
-or 
+to be called if the pointer passed to
 .Xr free 3
-, such as a calling
-.Xr free 3
-on a pointer previously freed.
-.It Ev MallocCorruptionAbort
-Similar to
-.Ev
-MallocErrorAbort 
-but will not abort in out of memory conditions, making it more useful to catch
-only those errors which will cause memory corruption.
-MallocCorruptionAbort is always set on 64-bit processes.
+was previously freed, or is otherwise illegal.
 .It Ev MallocHelp
 If set, print a list of environment variables that are paid heed to by the
 allocation-related functions, along with short descriptions.
@@ -276,8 +269,5 @@ The list should correspond to this documentation.
 .Sh SEE ALSO
 .Xr leaks 1 ,
 .Xr malloc_history 1 ,
-.Xr abort 3 ,
-.Xr malloc_size 3 ,
-.Xr malloc_zone_malloc 3 ,
-.Xr posix_memalign 3 ,
-.Xr libgmalloc 3
+.Xr abort 3
+.Pa /Developer/Documentation/ReleaseNotes/DeveloperTools/MallocOptions.html

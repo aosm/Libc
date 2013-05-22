@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,9 +35,7 @@
 static char sccsid[] = "@(#)strtol.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdlib/strtol.c,v 1.20 2007/01/09 00:28:10 imp Exp $");
-
-#include "xlocale_private.h"
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/strtol.c,v 1.17 2002/09/06 11:23:59 tjr Exp $");
 
 #include <limits.h>
 #include <ctype.h>
@@ -48,8 +50,7 @@ __FBSDID("$FreeBSD: src/lib/libc/stdlib/strtol.c,v 1.20 2007/01/09 00:28:10 imp 
  * alphabets and digits are each contiguous.
  */
 long
-strtol_l(const char * __restrict nptr, char ** __restrict endptr, int base,
-    locale_t loc)
+strtol(const char * __restrict nptr, char ** __restrict endptr, int base)
 {
 	const char *s;
 	unsigned long acc;
@@ -57,7 +58,6 @@ strtol_l(const char * __restrict nptr, char ** __restrict endptr, int base,
 	unsigned long cutoff;
 	int neg, any, cutlim;
 
-	NORMALIZE_LOCALE(loc);
 	/*
 	 * Skip white space and pick up leading +/- sign if any.
 	 * If base is 0, allow 0x for hex and 0 for octal, else
@@ -66,7 +66,7 @@ strtol_l(const char * __restrict nptr, char ** __restrict endptr, int base,
 	s = nptr;
 	do {
 		c = *s++;
-	} while (isspace_l((unsigned char)c, loc));
+	} while (isspace((unsigned char)c));
 	if (c == '-') {
 		neg = 1;
 		c = *s++;
@@ -76,10 +76,7 @@ strtol_l(const char * __restrict nptr, char ** __restrict endptr, int base,
 			c = *s++;
 	}
 	if ((base == 0 || base == 16) &&
-	    c == '0' && (*s == 'x' || *s == 'X') &&
-	    ((s[1] >= '0' && s[1] <= '9') ||
-	    (s[1] >= 'A' && s[1] <= 'F') ||
-	    (s[1] >= 'a' && s[1] <= 'f'))) {
+	    c == '0' && (*s == 'x' || *s == 'X')) {
 		c = s[1];
 		s += 2;
 		base = 16;
@@ -141,10 +138,4 @@ noconv:
 	if (endptr != NULL)
 		*endptr = (char *)(any ? s - 1 : nptr);
 	return (acc);
-}
-
-long
-strtol(const char * __restrict nptr, char ** __restrict endptr, int base)
-{
-	return strtol_l(nptr, endptr, base, __current_locale());
 }

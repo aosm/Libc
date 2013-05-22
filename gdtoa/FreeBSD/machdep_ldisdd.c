@@ -32,8 +32,6 @@
 
 #include <sys/cdefs.h>
 
-#include "xlocale_private.h"
-
 #include "gdtoaimp.h"
 
 long double
@@ -41,16 +39,6 @@ strtold(const char * __restrict s, char ** __restrict sp)
 {
 	long double result;
 
-	strtopdd(s, sp, (double *)&result, __current_locale());
-	return result;
-}
-
-long double
-strtold_l(const char * __restrict s, char ** __restrict sp, locale_t loc)
-{
-	long double result;
-
-	NORMALIZE_LOCALE(loc);
-	strtopdd(s, sp, (double *)&result, loc);
+	strtopdd(s, sp, &result);
 	return result;
 }

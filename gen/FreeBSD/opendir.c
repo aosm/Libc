@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,7 +35,7 @@
 static char sccsid[] = "@(#)opendir.c	8.8 (Berkeley) 5/1/95";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gen/opendir.c,v 1.24 2008/04/16 18:40:52 delphij Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/gen/opendir.c,v 1.22 2004/08/14 17:46:10 stefanf Exp $");
 
 #include "namespace.h"
 #include <sys/param.h>
@@ -44,7 +48,6 @@ __FBSDID("$FreeBSD: src/lib/libc/gen/opendir.c,v 1.24 2008/04/16 18:40:52 delphi
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <pthread.h>
 #include "un-namespace.h"
 
 #include "telldir.h"
@@ -52,30 +55,46 @@ __FBSDID("$FreeBSD: src/lib/libc/gen/opendir.c,v 1.24 2008/04/16 18:40:52 delphi
  * Open a directory.
  */
 DIR *
-opendir(const char *name)
+opendir(name)
+	const char *name;
 {
 
 	return (__opendir2(name, DTF_HIDEW|DTF_NODUP));
 }
 
 DIR *
-__opendir2(const char *name, int flags)
+__opendir2(name, flags)
+	const char *name;
+	int flags;
 {
 	DIR *dirp;
 	int fd;
 	int incr;
 	int saved_errno;
 	int unionstack;
+	struct stat statb;
 
 	/*
-	 * Use O_DIRECTORY to only open directories (because opening of
-	 * special files may be harmful).  errno is set to ENOTDIR if
-	 * not a directory.
+	 * stat() before _open() because opening of special files may be
+	 * harmful.  _fstat() after open because the file may have changed.
 	 */
-	if ((fd = _open(name, O_RDONLY | O_NONBLOCK | O_DIRECTORY | O_CLOEXEC)) == -1)
+	if (stat(name, &statb) != 0)
 		return (NULL);
-	dirp = malloc(sizeof(DIR) + sizeof(struct _telldir));
-	if (dirp == NULL)
+	if (!S_ISDIR(statb.st_mode)) {
+		errno = ENOTDIR;
+		return (NULL);
+	}
+	if ((fd = _open(name, O_RDONLY | O_NONBLOCK)) == -1)
+		return (NULL);
+	dirp = NULL;
+	if (_fstat(fd, &statb) != 0)
+		goto fail;
+	if (!S_ISDIR(statb.st_mode)) {
+		errno = ENOTDIR;
+		goto fail;
+	}
+	if (_fcntl(fd, F_SETFD, FD_CLOEXEC) == -1 ||
+	    (dirp = malloc(sizeof(DIR) + sizeof(struct _telldir))) == NULL)
 		goto fail;
 
 	dirp->dd_td = (struct _telldir *)((char *)dirp + sizeof(DIR));
@@ -99,7 +118,8 @@ __opendir2(const char *name, int flags)
 
 		if (_fstatfs(fd, &sfb) < 0)
 			goto fail;
-		unionstack = (sfb.f_flags & MNT_UNION);
+		unionstack = !strcmp(sfb.f_fstypename, "unionfs")
+		    || (sfb.f_flags & MNT_UNION);
 	} else {
 		unionstack = 0;
 	}
@@ -134,11 +154,7 @@ __opendir2(const char *name, int flags)
 				ddptr = buf + (len - space);
 			}
 
-#if __DARWIN_64_BIT_INO_T
-			n = __getdirentries64(fd, ddptr, space, &dirp->dd_td->seekoff);
-#else /* !__DARWIN_64_BIT_INO_T */
 			n = _getdirentries(fd, ddptr, space, &dirp->dd_seek);
-#endif /* __DARWIN_64_BIT_INO_T */
 			if (n > 0) {
 				ddptr += n;
 				space -= n;
@@ -246,18 +262,14 @@ __opendir2(const char *name, int flags)
 		dirp->dd_buf = malloc(dirp->dd_len);
 		if (dirp->dd_buf == NULL)
 			goto fail;
-#if __DARWIN_64_BIT_INO_T
-		dirp->dd_td->seekoff = 0;
-#else /* !__DARWIN_64_BIT_INO_T */
 		dirp->dd_seek = 0;
-#endif /* __DARWIN_64_BIT_INO_T */
 		flags &= ~DTF_REWIND;
 	}
 
 	dirp->dd_loc = 0;
 	dirp->dd_fd = fd;
 	dirp->dd_flags = flags;
-	dirp->dd_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
+	dirp->dd_lock = NULL;
 
 	/*
 	 * Set up seek point for rewinddir.

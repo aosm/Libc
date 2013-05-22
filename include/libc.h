@@ -28,6 +28,7 @@
 #define _LIBC_H
 
 #include <stdio.h>
+#include <standards.h>
 #include <unistd.h>
 
 #ifdef	__STRICT_BSD__

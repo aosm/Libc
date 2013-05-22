@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,7 +35,7 @@
 static char sccsid[] = "@(#)mpool.c	8.5 (Berkeley) 7/26/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/db/mpool/mpool.c,v 1.16 2009/03/28 04:00:46 delphij Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/db/mpool/mpool.c,v 1.12 2004/09/10 05:41:41 kuriyama Exp $");
 
 #include "namespace.h"
 #include <sys/param.h>
@@ -58,9 +62,11 @@ static int  mpool_write(MPOOL *, BKT *);
  * mpool_open --
  *	Initialize a memory pool.
  */
-/* ARGSUSED */
 MPOOL *
-mpool_open(void *key, int fd, pgno_t pagesize, pgno_t maxcache)
+mpool_open(key, fd, pagesize, maxcache)
+	void *key;
+	int fd;
+	pgno_t pagesize, maxcache;
 {
 	struct stat sb;
 	MPOOL *mp;
@@ -97,8 +103,11 @@ mpool_open(void *key, int fd, pgno_t pagesize, pgno_t maxcache)
  *	Initialize input/output filters.
  */
 void
-mpool_filter(MPOOL *mp, void (*pgin) (void *, pgno_t, void *),
-    void (*pgout) (void *, pgno_t, void *), void *pgcookie)
+mpool_filter(mp, pgin, pgout, pgcookie)
+	MPOOL *mp;
+	void (*pgin)(void *, pgno_t, void *);
+	void (*pgout)(void *, pgno_t, void *);
+	void *pgcookie;
 {
 	mp->pgin = pgin;
 	mp->pgout = pgout;
@@ -119,7 +128,7 @@ mpool_new(mp, pgnoaddr)
 
 	if (mp->npages == MAX_PAGE_NUMBER) {
 		(void)fprintf(stderr, "mpool_new: page allocation overflow.\n");
-		LIBC_ABORT("page allocation overflow");
+		abort();
 	}
 #ifdef STATISTICS
 	++mp->pagenew;
@@ -144,10 +153,11 @@ mpool_new(mp, pgnoaddr)
  * mpool_get
  *	Get a page.
  */
-/* ARGSUSED */
 void *
-mpool_get(MPOOL *mp, pgno_t pgno,
-    u_int flags)		/* XXX not used? */
+mpool_get(mp, pgno, flags)
+	MPOOL *mp;
+	pgno_t pgno;
+	u_int flags;				/* XXX not used? */
 {
 	struct _hqh *head;
 	BKT *bp;
@@ -170,7 +180,7 @@ mpool_get(MPOOL *mp, pgno_t pgno,
 		if (bp->flags & MPOOL_PINNED) {
 			(void)fprintf(stderr,
 			    "mpool_get: page %d already pinned\n", bp->pgno);
-			LIBC_ABORT("page %d already pinned", bp->pgno);
+			abort();
 		}
 #endif
 		/*
@@ -227,9 +237,11 @@ mpool_get(MPOOL *mp, pgno_t pgno,
  * mpool_put
  *	Return a page.
  */
-/* ARGSUSED */
 int
-mpool_put(MPOOL *mp, void *page, u_int flags)
+mpool_put(mp, page, flags)
+	MPOOL *mp;
+	void *page;
+	u_int flags;
 {
 	BKT *bp;
 
@@ -241,7 +253,7 @@ mpool_put(MPOOL *mp, void *page, u_int flags)
 	if (!(bp->flags & MPOOL_PINNED)) {
 		(void)fprintf(stderr,
 		    "mpool_put: page %d not pinned\n", bp->pgno);
-		LIBC_ABORT("page %d not pinned", bp->pgno);
+		abort();
 	}
 #endif
 	bp->flags &= ~MPOOL_PINNED;
@@ -254,7 +266,8 @@ mpool_put(MPOOL *mp, void *page, u_int flags)
  *	Close the buffer pool.
  */
 int
-mpool_close(MPOOL *mp)
+mpool_close(mp)
+	MPOOL *mp;
 {
 	BKT *bp;
 
@@ -275,21 +288,16 @@ mpool_close(MPOOL *mp)
  *	Sync the pool to disk.
  */
 int
-mpool_sync(MPOOL *mp)
+mpool_sync(mp)
+	MPOOL *mp;
 {
 	BKT *bp;
 
 	/* Walk the lru chain, flushing any dirty pages to disk. */
-	TAILQ_FOREACH(bp, &mp->lqh, q) {
-		if (bp->flags & MPOOL_DIRTY)
-			if (mpool_write(mp, bp) == RET_ERROR) {
-				return (RET_ERROR);
-			} else {
-				/* 4874757: Re-run through the user's pgin filter. */
-				if (mp->pgin != NULL)
-					(mp->pgin)(mp->pgcookie, bp->pgno, bp->page);
-			}
-	}
+	TAILQ_FOREACH(bp, &mp->lqh, q)
+		if (bp->flags & MPOOL_DIRTY &&
+		    mpool_write(mp, bp) == RET_ERROR)
+			return (RET_ERROR);
 
 	/* Sync the file descriptor. */
 	return (_fsync(mp->fd) ? RET_ERROR : RET_SUCCESS);
@@ -300,7 +308,8 @@ mpool_sync(MPOOL *mp)
  *	Get a page from the cache (or create one).
  */
 static BKT *
-mpool_bkt(MPOOL *mp)
+mpool_bkt(mp)
+	MPOOL *mp;
 {
 	struct _hqh *head;
 	BKT *bp;
@@ -338,10 +347,13 @@ mpool_bkt(MPOOL *mp)
 			return (bp);
 		}
 
-new:	if ((bp = (BKT *)calloc(1, sizeof(BKT) + mp->pagesize)) == NULL)
+new:	if ((bp = (BKT *)malloc(sizeof(BKT) + mp->pagesize)) == NULL)
 		return (NULL);
 #ifdef STATISTICS
 	++mp->pagealloc;
+#endif
+#if defined(DEBUG) || defined(PURIFY)
+	memset(bp, 0xff, sizeof(BKT) + mp->pagesize);
 #endif
 	bp->page = (char *)bp + sizeof(BKT);
 	++mp->curcache;
@@ -353,7 +365,9 @@ new:	if ((bp = (BKT *)calloc(1, sizeof(BKT) + mp->pagesize)) == NULL)
  *	Write a page to disk.
  */
 static int
-mpool_write(MPOOL *mp, BKT *bp)
+mpool_write(mp, bp)
+	MPOOL *mp;
+	BKT *bp;
 {
 	off_t off;
 
@@ -378,7 +392,9 @@ mpool_write(MPOOL *mp, BKT *bp)
  *	Lookup a page in the cache.
  */
 static BKT *
-mpool_look(MPOOL *mp, pgno_t pgno)
+mpool_look(mp, pgno)
+	MPOOL *mp;
+	pgno_t pgno;
 {
 	struct _hqh *head;
 	BKT *bp;
@@ -403,15 +419,16 @@ mpool_look(MPOOL *mp, pgno_t pgno)
  *	Print out cache statistics.
  */
 void
-mpool_stat(MPOOL *mp)
+mpool_stat(mp)
+	MPOOL *mp;
 {
 	BKT *bp;
 	int cnt;
 	char *sep;
 
-	(void)fprintf(stderr, "%lu pages in the file\n", mp->npages);
+	(void)fprintf(stderr, "%u pages in the file\n", mp->npages);
 	(void)fprintf(stderr,
-	    "page size %lu, cacheing %lu pages of %lu page max cache\n",
+	    "page size %lu, cacheing %u pages of %u page max cache\n",
 	    mp->pagesize, mp->curcache, mp->maxcache);
 	(void)fprintf(stderr, "%lu page puts, %lu page gets, %lu page new\n",
 	    mp->pageput, mp->pageget, mp->pagenew);

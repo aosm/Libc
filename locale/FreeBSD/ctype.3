@@ -9,6 +9,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -26,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ctype.3	8.1 (Berkeley) 6/4/93
-.\" $FreeBSD: src/lib/libc/locale/ctype.3,v 1.18 2009/09/04 07:44:58 des Exp $
+.\" $FreeBSD: src/lib/libc/locale/ctype.3,v 1.15 2004/06/30 20:09:08 ru Exp $
 .\"
 .Dd March 30, 2004
 .Dt CTYPE 3
@@ -111,12 +115,6 @@ They are available as macros, defined in the include file
 .In ctype.h ,
 or as true functions in the C library.
 See the specific manual pages for more information.
-.Pp
-Extended locale versions of these functions are documented in
-.Xr ctype_l 3 .
-See
-.Xr xlocale 3
-for more information.
 .Sh SEE ALSO
 .Xr digittoint 3 ,
 .Xr isalnum 3 ,
@@ -140,8 +138,7 @@ for more information.
 .Xr tolower 3 ,
 .Xr toupper 3 ,
 .Xr wctype 3 ,
-.Xr ascii 7 ,
-.Xr ctype_l 3
+.Xr ascii 7
 .Sh STANDARDS
 These functions, except for
 .Fn digittoint ,

@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,7 +38,7 @@
 static char sccsid[] = "@(#)refill.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdio/refill.c,v 1.20 2008/04/17 22:17:54 jhb Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/refill.c,v 1.18 2002/08/13 09:30:41 tjr Exp $");
 
 #include "namespace.h"
 #include <errno.h>
@@ -64,8 +68,8 @@ lflush(FILE *fp)
  * Refill a stdio buffer.
  * Return EOF on eof or error, 0 otherwise.
  */
-__private_extern__ int
-__srefill0(FILE *fp)
+int
+__srefill(FILE *fp)
 {
 
 	/* make sure stdio is set up */
@@ -106,7 +110,7 @@ __srefill0(FILE *fp)
 		if (HASUB(fp)) {
 			FREEUB(fp);
 			if ((fp->_r = fp->_ur) != 0) {
-				fp->_p = fp->_up;
+				fp->_p = fp->_extra->_up;
 				return (0);
 			}
 		}
@@ -130,13 +134,6 @@ __srefill0(FILE *fp)
 		if ((fp->_flags & (__SLBF|__SWR)) == (__SLBF|__SWR))
 			__sflush(fp);
 	}
-	return (1);
-}
-
-__private_extern__ int
-__srefill1(FILE *fp)
-{
-
 	fp->_p = fp->_bf._base;
 	fp->_r = _sread(fp, (char *)fp->_p, fp->_bf._size);
 	fp->_flags &= ~__SMOD;	/* buffer contents are again pristine */
@@ -150,14 +147,4 @@ __srefill1(FILE *fp)
 		return (EOF);
 	}
 	return (0);
-}
-
-int
-__srefill(FILE *fp)
-{
-	int ret;
-
-	if ((ret = __srefill0(fp)) <= 0)
-		return ret;
-	return __srefill1(fp);
 }

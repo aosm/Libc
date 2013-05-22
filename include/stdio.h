@@ -1,15 +1,15 @@
 /*
- * Copyright (c) 2000, 2005, 2007, 2009, 2010 Apple Inc. All rights reserved.
+ * Copyright (c) 2000 Apple Computer, Inc. All rights reserved.
  *
  * @APPLE_LICENSE_HEADER_START@
- *
+ * 
  * This file contains Original Code and/or Modifications of Original Code
  * as defined in and that are subject to the Apple Public Source License
  * Version 2.0 (the 'License'). You may not use this file except in
  * compliance with the License. Please obtain a copy of the License at
  * http://www.opensource.apple.com/apsl/ and read it before using this
  * file.
- *
+ * 
  * The Original Code and all software distributed under the License are
  * distributed on an 'AS IS' basis, WITHOUT WARRANTY OF ANY KIND, EITHER
  * EXPRESS OR IMPLIED, AND APPLE HEREBY DISCLAIMS ALL SUCH WARRANTIES,
@@ -17,7 +17,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE, QUIET ENJOYMENT OR NON-INFRINGEMENT.
  * Please see the License for the specific language governing rights and
  * limitations under the License.
- *
+ * 
  * @APPLE_LICENSE_HEADER_END@
  */
 /*-
@@ -61,10 +61,8 @@
 #ifndef	_STDIO_H_
 #define	_STDIO_H_
 
-#include <sys/cdefs.h>
-#include <Availability.h>
-
 #include <_types.h>
+#include <sys/cdefs.h>
 
 #ifndef _VA_LIST
 #define _VA_LIST
@@ -82,7 +80,11 @@ typedef	__darwin_size_t		size_t;
 #define NULL __DARWIN_NULL
 #endif /* ! NULL */
 
+#if !defined(_ANSI_SOURCE) && !defined(__STRICT_ANSI__)
 typedef __darwin_off_t		fpos_t;
+#else
+typedef __int64_t		fpos_t;
+#endif
 
 #define	_FSTDIO			/* Define for new stdio with functions. */
 
@@ -161,9 +163,13 @@ typedef	struct __sFILE {
 } FILE;
 
 __BEGIN_DECLS
+#if __DARWIN_UNIX03
 extern FILE *__stdinp;
 extern FILE *__stdoutp;
 extern FILE *__stderrp;
+#else /* !__DARWIN_UNIX03 */
+extern FILE __sF[];
+#endif /* __DARWIN_UNIX03 */
 __END_DECLS
 
 #define	__SLBF	0x0001		/* line buffered */
@@ -200,6 +206,11 @@ __END_DECLS
 #define	BUFSIZ	1024		/* size of buffer used by setbuf */
 #define	EOF	(-1)
 
+/*
+ * FOPEN_MAX is a minimum maximum, and is the number of streams that
+ * stdio can provide without attempting to allocate further resources
+ * (which could fail).  Do not use this for anything.
+ */
 				/* must be == _POSIX_STREAM_MAX <limits.h> */
 #define	FOPEN_MAX	20	/* must be <= OPEN_MAX <sys/syslimits.h> */
 #define	FILENAME_MAX	1024	/* must be <= PATH_MAX <sys/syslimits.h> */
@@ -221,20 +232,19 @@ __END_DECLS
 #define	SEEK_END	2	/* set file offset to EOF plus offset */
 #endif
 
+#if __DARWIN_UNIX03
 #define	stdin	__stdinp
 #define	stdout	__stdoutp
 #define	stderr	__stderrp
+#else /* !__DARWIN_UNIX03 */
+#define stdin	(&__sF[0])
+#define stdout	(&__sF[1])
+#define stderr	(&__sF[2])
+#endif /* __DARWIN_UNIX03 */
 
-#ifdef _DARWIN_UNLIMITED_STREAMS
-#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_3_2
-#error "_DARWIN_UNLIMITED_STREAMS specified, but -miphoneos-version-min version does not support it."
-#elif defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED < __MAC_10_6
-#error "_DARWIN_UNLIMITED_STREAMS specified, but -mmacosx-version-min version does not support it."
-#endif
-#endif
-
-/* ANSI-C */
-
+/*
+ * Functions defined in ANSI C standard.
+ */
 __BEGIN_DECLS
 void	 clearerr(FILE *);
 int	 fclose(FILE *);
@@ -244,156 +254,129 @@ int	 fflush(FILE *);
 int	 fgetc(FILE *);
 int	 fgetpos(FILE * __restrict, fpos_t *);
 char	*fgets(char * __restrict, int, FILE *);
-#if defined(_DARWIN_UNLIMITED_STREAMS) || defined(_DARWIN_C_SOURCE)
-FILE	*fopen(const char * __restrict, const char * __restrict) __DARWIN_ALIAS_STARTING(__MAC_10_6, __IPHONE_3_2, __DARWIN_EXTSN(fopen));
-#else /* !_DARWIN_UNLIMITED_STREAMS && !_DARWIN_C_SOURCE */
-//Begin-Libc
-#ifndef LIBC_ALIAS_FOPEN
-//End-Libc
-FILE	*fopen(const char * __restrict, const char * __restrict) __DARWIN_ALIAS_STARTING(__MAC_10_6, __IPHONE_2_0, __DARWIN_ALIAS(fopen));
-//Begin-Libc
-#else /* LIBC_ALIAS_FOPEN */
-FILE	*fopen(const char * __restrict, const char * __restrict) LIBC_ALIAS(fopen);
-#endif /* !LIBC_ALIAS_FOPEN */
-//End-Libc
-#endif /* (DARWIN_UNLIMITED_STREAMS || _DARWIN_C_SOURCE) */
-int	 fprintf(FILE * __restrict, const char * __restrict, ...) __printflike(2, 3);
+FILE	*fopen(const char * __restrict, const char * __restrict);
+int	 fprintf(FILE * __restrict, const char * __restrict, ...) __DARWIN_LDBL_COMPAT(fprintf);
 int	 fputc(int, FILE *);
-//Begin-Libc
-#ifndef LIBC_ALIAS_FPUTS
-//End-Libc
-int	 fputs(const char * __restrict, FILE * __restrict) __DARWIN_ALIAS(fputs);
-//Begin-Libc
-#else /* LIBC_ALIAS_FPUTS */
-int	 fputs(const char * __restrict, FILE * __restrict) LIBC_ALIAS(fputs);
-#endif /* !LIBC_ALIAS_FPUTS */
-//End-Libc
+int	 fputs(const char * __restrict, FILE * __restrict);
 size_t	 fread(void * __restrict, size_t, size_t, FILE * __restrict);
-//Begin-Libc
-#ifndef LIBC_ALIAS_FREOPEN
-//End-Libc
 FILE	*freopen(const char * __restrict, const char * __restrict,
-                 FILE * __restrict) __DARWIN_ALIAS(freopen);
-//Begin-Libc
-#else /* LIBC_ALIAS_FREOPEN */
-FILE	*freopen(const char * __restrict, const char * __restrict,
-                 FILE * __restrict) LIBC_ALIAS(freopen);
-#endif /* !LIBC_ALIAS_FREOPEN */
-//End-Libc
-int	 fscanf(FILE * __restrict, const char * __restrict, ...) __scanflike(2, 3);
+	    FILE * __restrict) __DARWIN_ALIAS(freopen);
+int	 fscanf(FILE * __restrict, const char * __restrict, ...) __DARWIN_LDBL_COMPAT(fscanf);
 int	 fseek(FILE *, long, int);
 int	 fsetpos(FILE *, const fpos_t *);
 long	 ftell(FILE *);
-//Begin-Libc
-#ifndef LIBC_ALIAS_FWRITE
-//End-Libc
 size_t	 fwrite(const void * __restrict, size_t, size_t, FILE * __restrict) __DARWIN_ALIAS(fwrite);
-//Begin-Libc
-#else /* LIBC_ALIAS_FWRITE */
-size_t	 fwrite(const void * __restrict, size_t, size_t, FILE * __restrict) LIBC_ALIAS(fwrite);
-#endif /* !LIBC_ALIAS_FWRITE */
-//End-Libc
 int	 getc(FILE *);
 int	 getchar(void);
 char	*gets(char *);
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_C_SOURCE)
+extern __const int sys_nerr;		/* perror(3) external variables */
+extern __const char *__const sys_errlist[];
+#endif
 void	 perror(const char *);
-int	 printf(const char * __restrict, ...) __printflike(1, 2);
+int	 printf(const char * __restrict, ...) __DARWIN_LDBL_COMPAT(printf);
 int	 putc(int, FILE *);
 int	 putchar(int);
 int	 puts(const char *);
 int	 remove(const char *);
 int	 rename (const char *, const char *);
 void	 rewind(FILE *);
-int	 scanf(const char * __restrict, ...) __scanflike(1, 2);
+int	 scanf(const char * __restrict, ...) __DARWIN_LDBL_COMPAT(scanf);
 void	 setbuf(FILE * __restrict, char * __restrict);
 int	 setvbuf(FILE * __restrict, char * __restrict, int, size_t);
-int	 sprintf(char * __restrict, const char * __restrict, ...) __printflike(2, 3);
-int	 sscanf(const char * __restrict, const char * __restrict, ...) __scanflike(2, 3);
+int	 sprintf(char * __restrict, const char * __restrict, ...) __DARWIN_LDBL_COMPAT(sprintf);
+int	 sscanf(const char * __restrict, const char * __restrict, ...) __DARWIN_LDBL_COMPAT(sscanf);
 FILE	*tmpfile(void);
 char	*tmpnam(char *);
 int	 ungetc(int, FILE *);
-int	 vfprintf(FILE * __restrict, const char * __restrict, va_list) __printflike(2, 0);
-int	 vprintf(const char * __restrict, va_list) __printflike(1, 0);
-int	 vsprintf(char * __restrict, const char * __restrict, va_list) __printflike(2, 0);
+int	 vfprintf(FILE * __restrict, const char * __restrict, va_list) __DARWIN_LDBL_COMPAT(vfprintf);
+int	 vprintf(const char * __restrict, va_list) __DARWIN_LDBL_COMPAT(vprintf);
+int	 vsprintf(char * __restrict, const char * __restrict, va_list) __DARWIN_LDBL_COMPAT(vsprintf);
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_C_SOURCE)
+int	 asprintf(char **, const char *, ...) __DARWIN_LDBL_COMPAT(asprintf);
+int	 vasprintf(char **, const char *, va_list) __DARWIN_LDBL_COMPAT(vasprintf);
+#endif
 __END_DECLS
 
-
-
-/* Additional functionality provided by:
- * POSIX.1-1988
+/*
+ * Functions defined in POSIX 1003.1.
  */
-
-#if __DARWIN_C_LEVEL >= 198808L
+#ifndef _ANSI_SOURCE
+#define	L_cuserid	9	/* size for cuserid(); UT_NAMESIZE + 1 */
 #define	L_ctermid	1024	/* size for ctermid(); PATH_MAX */
 
 __BEGIN_DECLS
-#ifndef __CTERMID_DEFINED
-/* Multiply defined in stdio.h and unistd.h by SUS */
-#define __CTERMID_DEFINED 1
 char	*ctermid(char *);
-#endif
-
-#if defined(_DARWIN_UNLIMITED_STREAMS) || defined(_DARWIN_C_SOURCE)
-FILE	*fdopen(int, const char *) __DARWIN_ALIAS_STARTING(__MAC_10_6, __IPHONE_3_2, __DARWIN_EXTSN(fdopen));
-#else /* !_DARWIN_UNLIMITED_STREAMS && !_DARWIN_C_SOURCE */
-//Begin-Libc
-#ifndef LIBC_ALIAS_FDOPEN
-//End-Libc
-FILE	*fdopen(int, const char *) __DARWIN_ALIAS_STARTING(__MAC_10_6, __IPHONE_2_0, __DARWIN_ALIAS(fdopen));
-//Begin-Libc
-#else /* LIBC_ALIAS_FDOPEN */
-FILE	*fdopen(int, const char *) LIBC_ALIAS(fdopen);
-#endif /* !LIBC_ALIAS_FDOPEN */
-//End-Libc
-#endif /* (DARWIN_UNLIMITED_STREAMS || _DARWIN_C_SOURCE) */
+#ifndef _POSIX_C_SOURCE
+char	*ctermid_r(char *);
+#endif /* not POSIX */
+FILE	*fdopen(int, const char *);
+#ifndef _POSIX_C_SOURCE
+char	*fgetln(FILE *, size_t *);
+#endif /* not POSIX */
 int	 fileno(FILE *);
-__END_DECLS
-#endif /* __DARWIN_C_LEVEL >= 198808L */
-
-
-/* Additional functionality provided by:
- * POSIX.2-1992 C Language Binding Option
- */
-
-#if __DARWIN_C_LEVEL >= 199209L
-__BEGIN_DECLS
+void	 flockfile(FILE *);
+#ifndef _POSIX_C_SOURCE
+__const char 
+	*fmtcheck(const char *, const char *);
+int	 fpurge(FILE *);
+#endif /* not POSIX */
+int	 fseeko(FILE *, fpos_t, int);
+fpos_t	 ftello(FILE *);
+int	 ftrylockfile(FILE *);
+void	 funlockfile(FILE *);
+int	 getc_unlocked(FILE *);
+int	 getchar_unlocked(void);
+#ifndef _POSIX_C_SOURCE
+int	 getw(FILE *);
+#endif /* not POSIX */
 int	 pclose(FILE *);
-#if defined(_DARWIN_UNLIMITED_STREAMS) || defined(_DARWIN_C_SOURCE)
-FILE	*popen(const char *, const char *) __DARWIN_ALIAS_STARTING(__MAC_10_6, __IPHONE_3_2, __DARWIN_EXTSN(popen));
-#else /* !_DARWIN_UNLIMITED_STREAMS && !_DARWIN_C_SOURCE */
-//Begin-Libc
-#ifndef LIBC_ALIAS_POPEN
-//End-Libc
-FILE	*popen(const char *, const char *) __DARWIN_ALIAS_STARTING(__MAC_10_6, __IPHONE_2_0, __DARWIN_ALIAS(popen));
-//Begin-Libc
-#else /* LIBC_ALIAS_POPEN */
-FILE	*popen(const char *, const char *) LIBC_ALIAS(popen);
-#endif /* !LIBC_ALIAS_POPEN */
-//End-Libc
-#endif /* (DARWIN_UNLIMITED_STREAMS || _DARWIN_C_SOURCE) */
+FILE	*popen(const char *, const char *);
+int	 putc_unlocked(int, FILE *);
+int	 putchar_unlocked(int);
+#ifndef _POSIX_C_SOURCE
+int	 putw(int, FILE *);
+void	 setbuffer(FILE *, char *, int);
+int	 setlinebuf(FILE *);
+#endif /* not POSIX */
+int	 snprintf(char * __restrict, size_t, const char * __restrict, ...) __DARWIN_LDBL_COMPAT(snprintf);
+char	*tempnam(const char *, const char *);
+int	 vfscanf(FILE * __restrict, const char * __restrict, va_list) __DARWIN_LDBL_COMPAT(vfscanf);
+int	 vscanf(const char * __restrict, va_list) __DARWIN_LDBL_COMPAT(vscanf);
+int	 vsnprintf(char * __restrict, size_t, const char * __restrict, va_list) __DARWIN_LDBL_COMPAT(vsnprintf);
+int	 vsscanf(const char * __restrict, const char * __restrict, va_list) __DARWIN_LDBL_COMPAT(vsscanf);
+#ifndef _POSIX_C_SOURCE
+FILE	*zopen(const char *, const char *, int);
+#endif /* not POSIX */
 __END_DECLS
-#endif /* __DARWIN_C_LEVEL >= 199209L */
 
-
-
-
-/* Additional functionality provided by:
- * POSIX.1c-1995,
- * POSIX.1i-1995,
- * and the omnibus ISO/IEC 9945-1: 1996
+/*
+ * Stdio function-access interface.
  */
+#ifndef _POSIX_C_SOURCE
+__BEGIN_DECLS
+FILE	*funopen(const void *,
+		int (*)(void *, char *, int),
+		int (*)(void *, const char *, int),
+		fpos_t (*)(void *, fpos_t, int),
+		int (*)(void *));
+__END_DECLS
+#define	fropen(cookie, fn) funopen(cookie, fn, 0, 0, 0)
+#define	fwopen(cookie, fn) funopen(cookie, 0, fn, 0, 0)
+#endif /* not POSIX */
+#endif /* not ANSI */
 
-#if __DARWIN_C_LEVEL >= 199506L
-
-/* Functions internal to the implementation. */
+/*
+ * Functions internal to the implementation.
+ */
 __BEGIN_DECLS
 int	__srget(FILE *);
-int	__svfscanf(FILE *, const char *, va_list) __scanflike(2, 0);
+int	__svfscanf(FILE *, const char *, va_list) __DARWIN_LDBL_COMPAT(__svfscanf);
 int	__swbuf(int, FILE *);
 __END_DECLS
 
 /*
- * The __sfoo macros are here so that we can
+ * The __sfoo macros are here so that we can 
  * define function versions in the C library.
  */
 #define	__sgetc(p) (--(p)->_r < 0 ? __srget(p) : (int)(*(p)->_p++))
@@ -423,31 +406,13 @@ static __inline int __sputc(int _c, FILE *_p) {
 #define	__sclearerr(p)	((void)((p)->_flags &= ~(__SERR|__SEOF)))
 #define	__sfileno(p)	((p)->_file)
 
-__BEGIN_DECLS
-void	 flockfile(FILE *);
-int	 ftrylockfile(FILE *);
-void	 funlockfile(FILE *);
-int	 getc_unlocked(FILE *);
-int	 getchar_unlocked(void);
-int	 putc_unlocked(int, FILE *);
-int	 putchar_unlocked(int);
-
-/* Removed in Issue 6 */
-#if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE < 200112L
-int	 getw(FILE *);
-int	 putw(int, FILE *);
-#endif
-
-//Begin-Libc
-#ifndef LIBC_ALIAS_TEMPNAM
-//End-Libc
-char	*tempnam(const char *, const char *) __DARWIN_ALIAS(tempnam);
-//Begin-Libc
-#else /* LIBC_ALIAS_TEMPNAM */
-char	*tempnam(const char *, const char *) LIBC_ALIAS(tempnam);
-#endif /* !LIBC_ALIAS_TEMPNAM */
-//End-Libc
-__END_DECLS
+#ifndef _ANSI_SOURCE
+#ifndef _POSIX_C_SOURCE
+#define	feof_unlocked(p)	__sfeof(p)
+#define	ferror_unlocked(p)	__sferror(p)
+#define	clearerr_unlocked(p)	__sclearerr(p)
+#define	fileno_unlocked(p)	__sfileno(p)
+#endif /* not POSIX */
 
 #ifndef lint
 #define	getc_unlocked(fp)	__sgetc(fp)
@@ -456,104 +421,10 @@ __END_DECLS
 
 #define	getchar_unlocked()	getc_unlocked(stdin)
 #define	putchar_unlocked(x)	putc_unlocked(x, stdout)
-#endif /* __DARWIN_C_LEVEL >= 199506L */
-
-
-
-/* Additional functionality provided by:
- * POSIX.1-2001
- * ISO C99
- */
-
-#if __DARWIN_C_LEVEL >= 200112L
-#ifndef	_OFF_T
-#define	_OFF_T
-typedef	__darwin_off_t		off_t;
-#endif
-
-__BEGIN_DECLS
-int	 fseeko(FILE *, off_t, int);
-off_t	 ftello(FILE *);
-__END_DECLS
-#endif /* __DARWIN_C_LEVEL >= 200112L */
-
-#if __DARWIN_C_LEVEL >= 200112L || defined(_C99_SOURCE) || defined(__cplusplus)
-__BEGIN_DECLS
-int	 snprintf(char * __restrict, size_t, const char * __restrict, ...) __printflike(3, 4);
-int	 vfscanf(FILE * __restrict, const char * __restrict, va_list) __scanflike(2, 0);
-int	 vscanf(const char * __restrict, va_list) __scanflike(1, 0);
-int	 vsnprintf(char * __restrict, size_t, const char * __restrict, va_list) __printflike(3, 0);
-int	 vsscanf(const char * __restrict, const char * __restrict, va_list) __scanflike(2, 0);
-__END_DECLS
-#endif /* __DARWIN_C_LEVEL >= 200112L || defined(_C99_SOURCE) || defined(__cplusplus) */
-
-
-
-/* Additional functionality provided by:
- * POSIX.1-2008
- */
-
-#if __DARWIN_C_LEVEL >= 200809L
-#ifndef _SSIZE_T
-#define _SSIZE_T
-typedef __darwin_ssize_t        ssize_t;
-#endif
-
-__BEGIN_DECLS
-int	dprintf(int, const char * __restrict, ...) __printflike(2, 3) __OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_4_3);
-int	vdprintf(int, const char * __restrict, va_list) __printflike(2, 0) __OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_4_3);
-ssize_t getdelim(char ** __restrict, size_t * __restrict, int, FILE * __restrict) __OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_4_3);
-ssize_t getline(char ** __restrict, size_t * __restrict, FILE * __restrict) __OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_4_3);
-__END_DECLS
-#endif /* __DARWIN_C_LEVEL >= 200809L */
-
-
-
-/* Darwin extensions */
-
-#if __DARWIN_C_LEVEL >= __DARWIN_C_FULL
-__BEGIN_DECLS
-extern __const int sys_nerr;		/* perror(3) external variables */
-extern __const char *__const sys_errlist[];
-
-int	 asprintf(char **, const char *, ...) __printflike(2, 3);
-char	*ctermid_r(char *);
-char	*fgetln(FILE *, size_t *);
-__const char *fmtcheck(const char *, const char *);
-int	 fpurge(FILE *);
-void	 setbuffer(FILE *, char *, int);
-int	 setlinebuf(FILE *);
-int	 vasprintf(char **, const char *, va_list) __printflike(2, 0);
-FILE	*zopen(const char *, const char *, int);
-
-
-/*
- * Stdio function-access interface.
- */
-FILE	*funopen(const void *,
-                 int (*)(void *, char *, int),
-                 int (*)(void *, const char *, int),
-                 fpos_t (*)(void *, fpos_t, int),
-                 int (*)(void *));
-__END_DECLS
-#define	fropen(cookie, fn) funopen(cookie, fn, 0, 0, 0)
-#define	fwopen(cookie, fn) funopen(cookie, 0, fn, 0, 0)
-
-#define	feof_unlocked(p)	__sfeof(p)
-#define	ferror_unlocked(p)	__sferror(p)
-#define	clearerr_unlocked(p)	__sclearerr(p)
-#define	fileno_unlocked(p)	__sfileno(p)
-
-#endif /* __DARWIN_C_LEVEL >= __DARWIN_C_FULL */
-
+#endif /* not ANSI */
 
 #ifdef _USE_EXTENDED_LOCALES_
 #include <xlocale/_stdio.h>
 #endif /* _USE_EXTENDED_LOCALES_ */
-
-#if defined (__GNUC__) && _FORTIFY_SOURCE > 0 && !defined (__cplusplus)
-/* Security checking functions.  */
-#include <secure/_stdio.h>
-#endif
 
 #endif /* _STDIO_H_ */

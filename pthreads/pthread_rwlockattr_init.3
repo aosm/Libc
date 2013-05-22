@@ -33,23 +33,21 @@
 .Sh SYNOPSIS
 .In pthread.h
 .Ft int
-.Fo pthread_rwlockattr_init
-.Fa "pthread_rwlockattr_t *attr"
-.Fc
+.Fn pthread_rwlockattr_init "pthread_rwlockattr_t *attr"
 .Sh DESCRIPTION
 The
 .Fn pthread_rwlockattr_init
-function is used to initialize a read/write lock attribute object.
+function is used to initialize a read/write lock attributes object.
 .Sh RETURN VALUES
 If successful, the
 .Fn pthread_rwlockattr_init
-function will return zero.
-Otherwise, an error number will be returned to indicate the error.
+function will return zero.  Otherwise an error number will be returned
+to indicate the error.
 .Sh SEE ALSO
-.Xr pthread_rwlock_init 3 ,
 .Xr pthread_rwlockattr_destroy 3 ,
 .Xr pthread_rwlockattr_getpshared 3 ,
-.Xr pthread_rwlockattr_setpshared 3
+.Xr pthread_rwlockattr_setpshared 3 ,
+.Xr pthread_rwlock_init 3
 .Sh STANDARDS
 The
 .Fn pthread_rwlockattr_init

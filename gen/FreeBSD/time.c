@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,11 +35,10 @@
 static char sccsid[] = "@(#)time.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gen/time.c,v 1.5 2007/01/09 00:27:55 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/gen/time.c,v 1.4 2003/07/19 02:53:46 wollman Exp $");
 
 #include <sys/types.h>
 #include <sys/time.h>
-#include <fenv.h>
 
 time_t
 time(t)
@@ -43,21 +46,12 @@ time(t)
 {
 	struct timeval tt;
 	time_t retval;
-#ifdef FE_DFL_ENV
-	fenv_t fenv;
-#endif /* FE_DFL_ENV */
 
-#ifdef FE_DFL_ENV
-	fegetenv(&fenv); /* 3965505 - need to preserve floating point enviroment */
-#endif /* FE_DFL_ENV */
 	if (gettimeofday(&tt, (struct timezone *)0) < 0)
 		retval = -1;
 	else
 		retval = tt.tv_sec;
 	if (t != NULL)
 		*t = retval;
-#ifdef FE_DFL_ENV
-	fesetenv(&fenv);
-#endif /* FE_DFL_ENV */
 	return (retval);
 }

@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,9 +35,7 @@
 static char sccsid[] = "@(#)strcasecmp.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/string/strcasecmp.c,v 1.8 2009/02/03 17:58:20 danger Exp $");
-
-#include "xlocale_private.h"
+__FBSDID("$FreeBSD: src/lib/libc/string/strcasecmp.c,v 1.6 2002/08/30 15:40:01 robert Exp $");
 
 #include <strings.h>
 #include <ctype.h>
@@ -41,51 +43,35 @@ __FBSDID("$FreeBSD: src/lib/libc/string/strcasecmp.c,v 1.8 2009/02/03 17:58:20 d
 typedef unsigned char u_char;
 
 int
-strcasecmp_l(s1, s2, loc)
+strcasecmp(s1, s2)
 	const char *s1, *s2;
-	locale_t loc;
 {
 	const u_char
 			*us1 = (const u_char *)s1,
 			*us2 = (const u_char *)s2;
 
-	NORMALIZE_LOCALE(loc);
-	while (tolower_l(*us1, loc) == tolower_l(*us2++, loc))
+	while (tolower(*us1) == tolower(*us2++))
 		if (*us1++ == '\0')
 			return (0);
-	return (tolower_l(*us1, loc) - tolower_l(*--us2, loc));
+	return (tolower(*us1) - tolower(*--us2));
 }
 
 int
-strcasecmp(const char *s1, const char *s2)
-{
-	return strcasecmp_l(s1, s2, __current_locale());
-}
-
-int
-strncasecmp_l(s1, s2, n, loc)
+strncasecmp(s1, s2, n)
 	const char *s1, *s2;
 	size_t n;
-	locale_t loc;
 {
-	NORMALIZE_LOCALE(loc);
 	if (n != 0) {
 		const u_char
 				*us1 = (const u_char *)s1,
 				*us2 = (const u_char *)s2;
 
 		do {
-			if (tolower_l(*us1, loc) != tolower_l(*us2++, loc))
-				return (tolower_l(*us1, loc) - tolower_l(*--us2, loc));
+			if (tolower(*us1) != tolower(*us2++))
+				return (tolower(*us1) - tolower(*--us2));
 			if (*us1++ == '\0')
 				break;
 		} while (--n != 0);
 	}
 	return (0);
-}
-
-int
-strncasecmp(const char *s1, const char *s2, size_t n)
-{
-	return strncasecmp_l(s1, s2, n, __current_locale());
 }

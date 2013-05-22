@@ -13,6 +13,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -30,30 +34,22 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)strcat.3	8.1 (Berkeley) 6/4/93
-.\" $FreeBSD: src/lib/libc/string/strcat.3,v 1.17 2009/12/01 07:28:56 brueffer Exp $
+.\" $FreeBSD: src/lib/libc/string/strcat.3,v 1.13 2002/09/06 11:24:06 tjr Exp $
 .\"
-.Dd December 1, 2009
+.Dd June 4, 1993
 .Dt STRCAT 3
 .Os
 .Sh NAME
-.Nm strcat ,
-.Nm strncat
+.Nm strcat
 .Nd concatenate strings
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In string.h
 .Ft char *
-.Fo strcat
-.Fa "char *restrict s1"
-.Fa "const char *restrict s2"
-.Fc
+.Fn strcat "char * restrict s" "const char * restrict append"
 .Ft char *
-.Fo strncat
-.Fa "char *restrict s1"
-.Fa "const char *restrict s2"
-.Fa "size_t n"
-.Fc
+.Fn strncat "char * restrict s" "const char * restrict append" "size_t count"
 .Sh DESCRIPTION
 The
 .Fn strcat
@@ -61,27 +57,24 @@ and
 .Fn strncat
 functions
 append a copy of the null-terminated string
-.Fa s2
+.Fa append
 to the end of the null-terminated string
-.Fa s1 ,
+.Fa s ,
 then add a terminating
 .Ql \e0 .
 The string
-.Fa s1
+.Fa s
 must have sufficient space to hold the result.
 .Pp
 The
 .Fn strncat
 function
 appends not more than
-.Fa n
+.Fa count
 characters from
-.Fa s2 ,
+.Fa append ,
 and then adds a terminating
 .Ql \e0 .
-.Pp
-The source and destination strings should not overlap, as the
-behavior is undefined.
 .Sh RETURN VALUES
 The
 .Fn strcat
@@ -89,7 +82,7 @@ and
 .Fn strncat
 functions
 return the pointer
-.Fa s1 .
+.Fa s .
 .Sh SECURITY CONSIDERATIONS
 The
 .Fn strcat
@@ -121,7 +114,7 @@ Example:
 void
 foo(const char *arbitrary_string)
 {
-	char onstack[8] = "";
+	char onstack[8];
 
 #if defined(BAD)
 	/*
@@ -155,8 +148,12 @@ foo(const char *arbitrary_string)
 .Xr memmove 3 ,
 .Xr strcpy 3 ,
 .Xr strlcat 3 ,
-.Xr strlcpy 3 ,
-.Xr wcscat 3
+.Xr strlcpy 3
+.Rs
+.%T "The FreeBSD Security Architecture"
+.Re
+(See
+.Pa "/usr/share/doc/{to be decided}" . )
 .Sh STANDARDS
 The
 .Fn strcat

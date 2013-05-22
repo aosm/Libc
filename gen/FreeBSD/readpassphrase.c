@@ -33,8 +33,6 @@ static const char rcsid[] = "$OpenBSD: readpassphrase.c,v 1.12 2001/12/15 05:41:
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD: src/lib/libc/gen/readpassphrase.c,v 1.6 2002/03/09 03:16:41 green Exp $");
 
-#include "xlocale_private.h"
-
 #include "namespace.h"
 #include <ctype.h>
 #include <errno.h>
@@ -61,7 +59,6 @@ readpassphrase(const char *prompt, char *buf, size_t bufsiz, int flags)
 	struct termios term, oterm;
 	struct sigaction sa, saveint, savehup, savequit, saveterm;
 	struct sigaction savetstp, savettin, savettou;
-	locale_t loc = __current_locale();
 
 	/* I suppose we could alloc on demand in this case (XXX). */
 	if (bufsiz == 0) {
@@ -118,11 +115,11 @@ restart:
 		if (p < end) {
 			if ((flags & RPP_SEVENBIT))
 				ch &= 0x7f;
-			if (isalpha_l(ch, loc)) {
+			if (isalpha(ch)) {
 				if ((flags & RPP_FORCELOWER))
-					ch = tolower_l(ch, loc);
+					ch = tolower(ch);
 				if ((flags & RPP_FORCEUPPER))
-					ch = toupper_l(ch, loc);
+					ch = toupper(ch);
 			}
 			*p++ = ch;
 		}

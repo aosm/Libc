@@ -24,7 +24,6 @@
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
@@ -49,7 +48,7 @@ enum {
 #define	TM_YEAR_SET	0x04
 #define	UNDEFINED	-1
 
-static const struct tm tmundef = {
+static struct tm tmundef = {
     UNDEFINED,
     UNDEFINED,
     UNDEFINED,
@@ -70,11 +69,10 @@ int getdate_err;
 struct tm *
 getdate(const char *str)
 {
-    static struct tm tm;
-    struct tm *now, *result = NULL;
+    static struct tm tm, *now, *result = NULL;
     time_t t;
     FILE *fp;
-    int bufsiz, offset, len, dateset, timeset, saveerrno, wday_set, save_mon;
+    int bufsiz, offset, len, dateset, timeset, saveerrno, wday_set;
     char *buf;
     struct stat st;
     char *file = getenv(DATEMSK);
@@ -220,7 +218,7 @@ getdate(const char *str)
 		case TM_YEAR_SET:
 		case TM_YEAR_SET | TM_MON_SET:
 		    if(!(dateset & TM_MON_SET))
-			tm.tm_mon = 0;
+			tm.tm_mon = 1;
 		    tm.tm_mday = 1;
 		    break;
 
@@ -234,13 +232,10 @@ getdate(const char *str)
 		tm.tm_wday = now->tm_wday;
 		tm.tm_gmtoff = now->tm_gmtoff;	/* XXX: can't grok timezones */
 		tm.tm_isdst = -1;
-		save_mon = tm.tm_mon;
+
 		if(mktime(&tm) == (time_t)-1) {
 		    getdate_err = INVALID_DATE;
 		    break;
-		} else if ((dateset & TM_MON_SET) && (tm.tm_mon != save_mon)) { /* Did mktime fixup an overflow date? */
-			getdate_err = INVALID_DATE;
-			break;
 		}
 		if(wday_set != UNDEFINED) {
 		    int delta = wday_set - tm.tm_wday;
@@ -257,7 +252,6 @@ getdate(const char *str)
 		    }
 		}
 		result = &tm;
-		break;
 	    }
 	} while(0);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005 Apple Computer, Inc. All rights reserved.
+ * Copyright (c) 1999 Apple Computer, Inc. All rights reserved.
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -53,20 +53,30 @@
  * SUCH DAMAGE.
  */
 
+
 #include <sys/types.h>
+
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
 #include <utmp.h>
-#include <utmpx.h>
-#include <utmpx-darwin.h>
+#include <stdio.h>
 
 void
-login(struct utmp *ut)
+login(ut)
+	struct utmp *ut;
 {
-	struct utmpx ux;
+	register int fd;
+	int tty;
 
-	getutmpx(ut, &ux);
-	/* ut_id will automatically be calculated in the call to pututxline() */
-	ux.ut_type |= UTMPX_AUTOFILL_MASK;
-	setutxent();
-	pututxline(&ux);
-	endutxent();
+	tty = ttyslot();
+	if (tty > 0 && (fd = open(_PATH_UTMP, O_WRONLY|O_CREAT, 0644)) >= 0) {
+		(void)lseek(fd, (off_t)(tty * sizeof(struct utmp)), L_SET);
+		(void)write(fd, ut, sizeof(struct utmp));
+		(void)close(fd);
+	}
+	if ((fd = open(_PATH_WTMP, O_WRONLY|O_APPEND, 0)) >= 0) {
+		(void)write(fd, ut, sizeof(struct utmp));
+		(void)close(fd);
+	}
 }

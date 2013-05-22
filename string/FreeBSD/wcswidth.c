@@ -18,6 +18,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -36,32 +40,22 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/string/wcswidth.c,v 1.7 2007/01/09 00:28:12 imp Exp $");
-
-#include "xlocale_private.h"
+__FBSDID("$FreeBSD: src/lib/libc/string/wcswidth.c,v 1.6 2002/08/20 02:06:28 ache Exp $");
 
 #include <wchar.h>
 
 int
-wcswidth_l(const wchar_t *pwcs, size_t n, locale_t loc)
+wcswidth(const wchar_t *pwcs, size_t n)
 {
 	wchar_t wc;
 	int len, l;
 
-	NORMALIZE_LOCALE(loc);
 	len = 0;
 	while (n-- > 0 && (wc = *pwcs++) != L'\0') {
-		if ((l = wcwidth_l(wc, loc)) < 0)
+		if ((l = wcwidth(wc)) < 0)
 			return (-1);
 		len += l;
 	}
 	return (len);
-}
-
-
-int
-wcswidth(const wchar_t *pwcs, size_t n)
-{
-	return wcswidth_l(pwcs, n, __current_locale());
 }
 

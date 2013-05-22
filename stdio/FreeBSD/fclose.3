@@ -13,6 +13,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -30,14 +34,13 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)fclose.3	8.1 (Berkeley) 6/4/93
-.\" $FreeBSD: src/lib/libc/stdio/fclose.3,v 1.15 2007/01/09 00:28:06 imp Exp $
+.\" $FreeBSD: src/lib/libc/stdio/fclose.3,v 1.12 2002/12/18 12:45:10 ru Exp $
 .\"
-.Dd April 22, 2006
+.Dd June 4, 1993
 .Dt FCLOSE 3
 .Os
 .Sh NAME
-.Nm fclose ,
-.Nm fcloseall
+.Nm fclose
 .Nd close a stream
 .Sh LIBRARY
 .Lb libc
@@ -45,8 +48,6 @@
 .In stdio.h
 .Ft int
 .Fn fclose "FILE *stream"
-.Ft void
-.Fn fcloseall void
 .Sh DESCRIPTION
 The
 .Fn fclose
@@ -57,12 +58,6 @@ from its underlying file or set of functions.
 If the stream was being used for output, any buffered data is written
 first, using
 .Xr fflush 3 .
-.Pp
-The
-.Fn fcloseall
-function calls
-.Fn fclose
-on all open streams.
 .Sh RETURN VALUES
 Upon successful completion 0 is returned.
 Otherwise,
@@ -104,8 +99,3 @@ The
 function
 conforms to
 .St -isoC .
-.Pp
-The
-.Fn fcloseall
-function first appeared in
-.Fx 7.0 .

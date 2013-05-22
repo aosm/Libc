@@ -1,7 +1,7 @@
-/*	$OpenBSD: ecvt.c,v 1.7 2009/10/16 12:15:03 martynas Exp $	*/
+/*	$OpenBSD: ecvt.c,v 1.3 2003/06/17 21:56:24 millert Exp $	*/
 
 /*
- * Copyright (c) 2002, 2006 Todd C. Miller <Todd.Miller@courtesan.com>
+ * Copyright (c) 2002 Todd C. Miller <Todd.Miller@courtesan.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,20 +20,22 @@
  * Materiel Command, USAF, under agreement number F39502-99-1-0512.
  */
 
-#include <sys/cdefs.h>
+#if defined(LIBC_SCCS) && !defined(lint)
+static char rcsid[] = "$OpenBSD: ecvt.c,v 1.3 2003/06/17 21:56:24 millert Exp $";
+#endif /* LIBC_SCCS and not lint */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 extern char *__dtoa(double, int, int, int *, int *, char **);
-extern void  __freedtoa(char *);
 static char *__cvt(double, int, int *, int *, int, int);
 
 static char *
-__cvt(double value, int ndigit, int * __restrict decpt, int * __restrict sign, int fmode, int pad)
+__cvt(double value, int ndigit, int *decpt, int *sign, int fmode, int pad)
 {
 	static char *s;
-	char *p, *rve, c;
+	char *p, *rve;
 	size_t siz;
 
 	if (ndigit == 0) {
@@ -63,29 +65,22 @@ __cvt(double value, int ndigit, int * __restrict decpt, int * __restrict sign, i
 		*rve = '\0';
 	} else {
 		p = __dtoa(value, fmode + 2, ndigit, decpt, sign, &rve);
-		if (p == NULL)
-			return (NULL);
 		if (*decpt == 9999) {
-			/* Infinity or Nan, convert to inf or nan like printf */
+			/* Nan or Infinity */
 			*decpt = 0;
-			c = *p;
-			__freedtoa(p);
-			return(c == 'I' ? "inf" : "nan");
+			return(p);
 		}
-		/* Make a local copy and adjust rve to be in terms of s */
+		/* make a local copy and adjust rve to be in terms of s */
 		if (pad && fmode)
 			siz += *decpt;
-		if ((s = (char *)malloc(siz)) == NULL) {
-			__freedtoa(p);
+		if ((s = (char *)malloc(siz)) == NULL)
 			return(NULL);
-		}
 		(void) strlcpy(s, p, siz);
 		rve = s + (rve - p);
-		__freedtoa(p);
 	}
 
-	/* Add trailing zeros */
-	if (pad) {
+	/* Add trailing zeros (unless we got NaN or Inf) */
+	if (pad && *decpt != 9999) {
 		siz -= rve - s;
 		while (--siz)
 			*rve++ = '0';
@@ -96,13 +91,13 @@ __cvt(double value, int ndigit, int * __restrict decpt, int * __restrict sign, i
 }
 
 char *
-ecvt(double value, int ndigit, int * __restrict decpt, int * __restrict sign)
+ecvt(double value, int ndigit, int *decpt, int *sign)
 {
 	return(__cvt(value, ndigit, decpt, sign, 0, 1));
 }
 
 char *
-fcvt(double value, int ndigit, int * __restrict decpt, int * __restrict sign)
+fcvt(double value, int ndigit, int *decpt, int *sign)
 {
 	return(__cvt(value, ndigit, decpt, sign, 1, 1));
 }

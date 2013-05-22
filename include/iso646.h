@@ -29,9 +29,7 @@
 #ifndef _ISO646_H_
 #define	_ISO646_H_
 
-#include <sys/cdefs.h>
-
-#if !defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE)
+#ifndef _POSIX_C_SOURCE
 
 #ifndef __cplusplus
 #define	and	&&
@@ -47,6 +45,6 @@
 #define	xor_eq	^=
 #endif /* ! __cplusplus */
 
-#endif /* (!_POSIX_C_SOURCE || _DARWIN_C_SOURCE) */
+#endif /* ! _POSIX_C_SOURCE */
 
 #endif /* !_ISO646_H_ */

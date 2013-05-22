@@ -25,9 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdio/fgetwc.c,v 1.13 2008/04/17 22:17:53 jhb Exp $");
-
-#include "xlocale_private.h"
+__FBSDID("$FreeBSD: src/lib/libc/stdio/fgetwc.c,v 1.12 2004/07/20 08:27:27 tjr Exp $");
 
 #include "namespace.h"
 #include <errno.h>
@@ -49,21 +47,7 @@ fgetwc(FILE *fp)
 
 	FLOCKFILE(fp);
 	ORIENT(fp, 1);
-	r = __fgetwc(fp, __current_locale());
-	FUNLOCKFILE(fp);
-
-	return (r);
-}
-
-wint_t
-fgetwc_l(FILE *fp, locale_t loc)
-{
-	wint_t r;
-
-	NORMALIZE_LOCALE(loc);
-	FLOCKFILE(fp);
-	ORIENT(fp, 1);
-	r = __fgetwc(fp, loc);
+	r = __fgetwc(fp);
 	FUNLOCKFILE(fp);
 
 	return (r);
@@ -73,23 +57,21 @@ fgetwc_l(FILE *fp, locale_t loc)
  * Non-MT-safe version.
  */
 wint_t
-__fgetwc(FILE *fp, locale_t loc)
+__fgetwc(FILE *fp)
 {
 	wchar_t wc;
 	size_t nconv;
-	struct __xlocale_st_runelocale *xrl = loc->__lc_ctype;
-	size_t (*__mbrtowc)(wchar_t * __restrict, const char * __restrict, size_t, mbstate_t * __restrict, locale_t) = xrl->__mbrtowc;
 
 	if (fp->_r <= 0 && __srefill(fp))
 		return (WEOF);
-	if (xrl->__mb_cur_max == 1) {
+	if (MB_CUR_MAX == 1) {
 		/* Fast path for single-byte encodings. */
 		wc = *fp->_p++;
 		fp->_r--;
 		return (wc);
 	}
 	do {
-		nconv = __mbrtowc(&wc, fp->_p, fp->_r, &fp->_mbstate, loc);
+		nconv = __mbrtowc(&wc, fp->_p, fp->_r, &fp->_extra->mbstate);
 		if (nconv == (size_t)-1)
 			break;
 		else if (nconv == (size_t)-2)

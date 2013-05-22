@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,30 +38,21 @@
 static char sccsid[] = "@(#)atexit.c	8.2 (Berkeley) 7/3/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdlib/atexit.c,v 1.8 2007/01/09 00:28:09 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/atexit.c,v 1.7 2003/12/19 17:11:20 kan Exp $");
 
 #include "namespace.h"
 #include <stddef.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
-#if defined(__DYNAMIC__) || defined (__BLOCKS__)
-#include <dlfcn.h>
-#endif /* defined(__DYNAMIC__) */
 #include "atexit.h"
 #include "un-namespace.h"
 
-#ifdef __BLOCKS__
-#include <Block.h>
-#endif /* __BLOCKS__ */
 #include "libc_private.h"
 
 #define	ATEXIT_FN_EMPTY	0
 #define	ATEXIT_FN_STD	1
 #define	ATEXIT_FN_CXA	2
-#ifdef __BLOCKS__
-#define	ATEXIT_FN_BLK	3
-#endif /* __BLOCKS__ */
 
 static pthread_mutex_t atexit_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -72,9 +67,6 @@ struct atexit {
 		union {
 			void (*std_func)(void);
 			void (*cxa_func)(void *);
-#ifdef __BLOCKS__
-			void (^block)(void);
-#endif /* __BLOCKS__ */
 		} fn_ptr;			/* function pointer */
 		void *fn_arg;			/* argument for CXA callback */
 		void *fn_dso;			/* shared module handle */
@@ -82,7 +74,6 @@ struct atexit {
 };
 
 static struct atexit *__atexit;		/* points to head of LIFO stack */
-static int new_registration;
 
 /*
  * Register the function described by 'fptr' to be called at application
@@ -118,7 +109,6 @@ atexit_register(struct atexit_fn *fptr)
 		__atexit = p;
 	}
 	p->fns[p->ind++] = *fptr;
-	new_registration = 1;
 	_MUTEX_UNLOCK(&atexit_mutex);
 	return 0;
 }
@@ -130,49 +120,16 @@ int
 atexit(void (*func)(void))
 {
 	struct atexit_fn fn;
-	struct dl_info info;
 	int error;
 
 	fn.fn_type = ATEXIT_FN_STD;
-	fn.fn_ptr.std_func = func;
+	fn.fn_ptr.std_func = func;;
 	fn.fn_arg = NULL;
-#if defined(__DYNAMIC__)
-	if ( dladdr(func, &info) )
-		fn.fn_dso = info.dli_fbase;
-	else 
-		fn.fn_dso = NULL;
-#else /* ! defined(__DYNAMIC__) */
 	fn.fn_dso = NULL;
-#endif /* defined(__DYNAMIC__) */
 
  	error = atexit_register(&fn);	
 	return (error);
 }
-
-#ifdef __BLOCKS__
-int
-atexit_b(void (^block)(void))
-{
-	struct atexit_fn fn;
-	struct dl_info info;
-	int error;
-
-	fn.fn_type = ATEXIT_FN_BLK;
-	fn.fn_ptr.block = Block_copy(block);
-	fn.fn_arg = NULL;
-#if defined(__DYNAMIC__)
-	if ( dladdr(block, &info) )
-		fn.fn_dso = info.dli_fbase;
-	else 
-		fn.fn_dso = NULL;
-#else /* ! defined(__DYNAMIC__) */
-	fn.fn_dso = NULL;
-#endif /* defined(__DYNAMIC__) */
-
- 	error = atexit_register(&fn);	
-	return (error);
-}
-#endif /* __BLOCKS__ */
 
 /*
  * Register a function to be performed at exit or when an shared object
@@ -199,14 +156,13 @@ __cxa_atexit(void (*func)(void *), void *arg, void *dso)
  * handlers are called.
  */
 void
-__cxa_finalize(const void *dso)
+__cxa_finalize(void *dso)
 {
 	struct atexit *p;
 	struct atexit_fn fn;
 	int n;
 
 	_MUTEX_LOCK(&atexit_mutex);
-restart:
 	for (p = __atexit; p; p = p->next) {
 		for (n = p->ind; --n >= 0;) {
 			if (p->fns[n].fn_type == ATEXIT_FN_EMPTY)
@@ -219,7 +175,6 @@ restart:
 			  has already been called.
 			*/
 			p->fns[n].fn_type = ATEXIT_FN_EMPTY;
-			new_registration = 0;
 		        _MUTEX_UNLOCK(&atexit_mutex);
 		
 			/* Call the function of correct type. */
@@ -227,13 +182,7 @@ restart:
 				fn.fn_ptr.cxa_func(fn.fn_arg);
 			else if (fn.fn_type == ATEXIT_FN_STD)
 				fn.fn_ptr.std_func();
-#ifdef __BLOCKS__
-			else if (fn.fn_type == ATEXIT_FN_BLK)
-				fn.fn_ptr.block();
-#endif /* __BLOCKS__ */
 			_MUTEX_LOCK(&atexit_mutex);
-			if (new_registration)
-			    goto restart;
 		}
 	}
 	_MUTEX_UNLOCK(&atexit_mutex);

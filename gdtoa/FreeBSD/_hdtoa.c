@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004, 2005 David Schultz <das@FreeBSD.ORG>
+ * Copyright (c) 2004 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,11 +25,13 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gdtoa/_hdtoa.c,v 1.5 2007/05/08 02:59:37 das Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/gdtoa/_hdtoa.c,v 1.2 2004/01/21 04:51:50 grehan Exp $");
 
 #include <float.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <math.h>
+#include <stdlib.h>
 #include "fpmath.h"
 #include "gdtoaimp.h"
 
@@ -37,8 +39,51 @@ __FBSDID("$FreeBSD: src/lib/libc/gdtoa/_hdtoa.c,v 1.5 2007/05/08 02:59:37 das Ex
 #define	INFSTR	"Infinity"
 #define	NANSTR	"NaN"
 
-#define	DBL_ADJ		(DBL_MAX_EXP - 2 + ((DBL_MANT_DIG - 1) % 4))
-#define	LDBL_ADJ	(LDBL_MAX_EXP - 2 + ((LDBL_MANT_DIG - 1) % 4))
+#define	DBL_BIAS	(DBL_MAX_EXP - 1)
+#define	LDBL_BIAS	(LDBL_MAX_EXP - 1)
+
+#ifdef	LDBL_IMPLICIT_NBIT
+#define	LDBL_NBIT_ADJ	0
+#else
+#define	LDBL_NBIT_ADJ	1
+#endif
+
+/*
+ * Efficiently compute the log2 of an integer.  Uses a combination of
+ * arcane tricks found in fortune and arcane tricks not (yet) in
+ * fortune.  This routine behaves similarly to fls(9).
+ */
+static int
+log2_32(uint32_t n)
+{
+
+        n |= (n >> 1);
+        n |= (n >> 2);
+        n |= (n >> 4);
+        n |= (n >> 8);
+        n |= (n >> 16);
+
+	n = (n & 0x55555555) + ((n & 0xaaaaaaaa) >> 1);
+	n = (n & 0x33333333) + ((n & 0xcccccccc) >> 2);
+	n = (n & 0x0f0f0f0f) + ((n & 0xf0f0f0f0) >> 4);
+	n = (n & 0x00ff00ff) + ((n & 0xff00ff00) >> 8);
+	n = (n & 0x0000ffff) + ((n & 0xffff0000) >> 16);
+	return (n - 1);
+}
+
+#if (LDBL_MANH_SIZE > 32 || LDBL_MANL_SIZE > 32)
+
+static int
+log2_64(uint64_t n)
+{
+
+	if (n >> 32 != 0)
+		return (log2_32((uint32_t)(n >> 32)) + 32);
+	else
+		return (log2_32((uint32_t)n));
+}
+
+#endif	/* (LDBL_MANH_SIZE > 32 || LDBL_MANL_SIZE > 32) */
 
 /*
  * Round up the given digit string.  If the digit string is fff...f,
@@ -55,7 +100,7 @@ roundup(char *s0, int ndigits)
 			*s = 1;
 			return (1);
 		}
-		*s = 0;
+		++*s;
 	}
 	++*s;
 	return (0);
@@ -78,7 +123,7 @@ dorounding(char *s0, int ndigits, int sign, int *decpt)
 		break;
 	case 1:		/* to nearest, halfway rounds to even */
 		if ((s0[ndigits] > 8) ||
-		    (s0[ndigits] == 8 && s0[ndigits + 1] & 1))
+		    (s0[ndigits] == 8 && s0[ndigits - 1] & 1))
 			adjust = roundup(s0, ndigits);
 		break;
 	case 2:		/* toward +inf */
@@ -123,30 +168,46 @@ char *
 __hdtoa(double d, const char *xdigs, int ndigits, int *decpt, int *sign,
     char **rve)
 {
-	static const int sigfigs = (DBL_MANT_DIG + 3) / 4;
 	union IEEEd2bits u;
 	char *s, *s0;
-	int bufsize, f;
+	int bufsize;
+	int impnbit;	/* implicit normalization bit */
+	int pos;
+	int shift;	/* for subnormals, # of shifts required to normalize */
+	int sigfigs;	/* number of significant hex figures in result */
 
 	u.d = d;
 	*sign = u.bits.sign;
 
-	switch (f = fpclassify(d)) {
+	switch (fpclassify(d)) {
 	case FP_NORMAL:
-		*decpt = u.bits.exp - DBL_ADJ;
+		sigfigs = (DBL_MANT_DIG + 3) / 4;
+		impnbit = 1 << ((DBL_MANT_DIG - 1) % 4);
+		*decpt = u.bits.exp - DBL_BIAS + 1 -
+		    ((DBL_MANT_DIG - 1) % 4);
 		break;
 	case FP_ZERO:
-return_zero:
 		*decpt = 1;
 		return (nrv_alloc("0", rve, 1));
 	case FP_SUBNORMAL:
 		/*
-		 * For processors that treat subnormals as zero, comparison
-		 * with zero will be equal, so we jump to the FP_ZERO case.
+		 * The position of the highest-order bit tells us by
+		 * how much to adjust the exponent (decpt).  The
+		 * adjustment is raised to the next nibble boundary
+		 * since we will later choose the leftmost hexadecimal
+		 * digit so that all subsequent digits align on nibble
+		 * boundaries.
 		 */
-		if(u.d == 0.0) goto return_zero;
-		u.d *= 0x1p514;
-		*decpt = u.bits.exp - (514 + DBL_ADJ);
+		if (u.bits.manh != 0) {
+			pos = log2_32(u.bits.manh);
+			shift = DBL_MANH_SIZE - pos;
+		} else {
+			pos = log2_32(u.bits.manl);
+			shift = DBL_MANH_SIZE + DBL_MANL_SIZE - pos;
+		}
+		sigfigs = (3 + DBL_MANT_DIG - shift) / 4;
+		impnbit = 0;
+		*decpt = DBL_MIN_EXP - ((shift + 3) & ~(4 - 1));
 		break;
 	case FP_INFINITE:
 		*decpt = INT_MAX;
@@ -155,7 +216,7 @@ return_zero:
 		*decpt = INT_MAX;
 		return (nrv_alloc(NANSTR, rve, sizeof(NANSTR) - 1));
 	default:
-		LIBC_ABORT("fpclassify returned %d", f);
+		abort();
 	}
 
 	/* FP_NORMAL or FP_SUBNORMAL */
@@ -193,9 +254,11 @@ return_zero:
 	 * At this point, we have snarfed all the bits in the
 	 * mantissa, with the possible exception of the highest-order
 	 * (partial) nibble, which is dealt with by the next
-	 * statement.  We also tack on the implicit normalization bit.
+	 * statement.  That nibble is usually in manh, but it could be
+	 * in manl instead for small subnormals.  We also tack on the
+	 * implicit normalization bit if appropriate.
 	 */
-	*s = u.bits.manh | (1U << ((DBL_MANT_DIG - 1) % 4));
+	*s = u.bits.manh | u.bits.manl | impnbit;
 
 	/* If ndigits < 0, we are expected to auto-size the precision. */
 	if (ndigits < 0) {
@@ -220,30 +283,71 @@ return_zero:
 
 /*
  * This is the long double version of __hdtoa().
+ *
+ * On architectures that have an explicit integer bit, unnormals and
+ * pseudo-denormals cause problems in the conversion routine, so they
+ * are ``fixed'' by effectively toggling the integer bit.  Although
+ * this is not correct behavior, the hardware will not produce these
+ * formats externally.
  */
 char *
 __hldtoa(long double e, const char *xdigs, int ndigits, int *decpt, int *sign,
     char **rve)
 {
-	static const int sigfigs = (LDBL_MANT_DIG + 3) / 4;
 	union IEEEl2bits u;
 	char *s, *s0;
-	int bufsize, f;
+	int bufsize;
+	int impnbit;	/* implicit normalization bit */
+	int pos;
+	int shift;	/* for subnormals, # of shifts required to normalize */
+	int sigfigs;	/* number of significant hex figures in result */
 
 	u.e = e;
 	*sign = u.bits.sign;
 
-	switch (f = fpclassify(e)) {
+	switch (fpclassify(e)) {
 	case FP_NORMAL:
-	case FP_SUPERNORMAL:
-		*decpt = u.bits.exp - LDBL_ADJ;
+		sigfigs = (LDBL_MANT_DIG + 3) / 4;
+		impnbit = 1 << ((LDBL_MANT_DIG - 1) % 4);
+		*decpt = u.bits.exp - LDBL_BIAS + 1 -
+		    ((LDBL_MANT_DIG - 1) % 4);
 		break;
 	case FP_ZERO:
 		*decpt = 1;
 		return (nrv_alloc("0", rve, 1));
 	case FP_SUBNORMAL:
-		u.e *= 0x1p514L;
-		*decpt = u.bits.exp - (514 + LDBL_ADJ);
+		/*
+		 * The position of the highest-order bit tells us by
+		 * how much to adjust the exponent (decpt).  The
+		 * adjustment is raised to the next nibble boundary
+		 * since we will later choose the leftmost hexadecimal
+		 * digit so that all subsequent digits align on nibble
+		 * boundaries.
+		 */
+#ifdef	LDBL_IMPLICIT_NBIT
+		/* Don't trust the normalization bit to be off. */
+		u.bits.manh &= ~(~0ULL << (LDBL_MANH_SIZE - 1));
+#endif
+		if (u.bits.manh != 0) {
+#if LDBL_MANH_SIZE > 32
+			pos = log2_64(u.bits.manh);
+#else
+			pos = log2_32(u.bits.manh);
+#endif
+			shift = LDBL_MANH_SIZE - LDBL_NBIT_ADJ - pos;
+		} else {
+#if LDBL_MANL_SIZE > 32
+			pos = log2_64(u.bits.manl);
+#else
+			pos = log2_32(u.bits.manl);
+#endif
+			shift = LDBL_MANH_SIZE + LDBL_MANL_SIZE -
+			    LDBL_NBIT_ADJ - pos;
+		}
+		sigfigs = (3 + LDBL_MANT_DIG - LDBL_NBIT_ADJ - shift) / 4;
+		*decpt = LDBL_MIN_EXP + LDBL_NBIT_ADJ -
+		    ((shift + 3) & ~(4 - 1));
+		impnbit = 0;
 		break;
 	case FP_INFINITE:
 		*decpt = INT_MAX;
@@ -252,7 +356,7 @@ __hldtoa(long double e, const char *xdigs, int ndigits, int *decpt, int *sign,
 		*decpt = INT_MAX;
 		return (nrv_alloc(NANSTR, rve, sizeof(NANSTR) - 1));
 	default:
-		LIBC_ABORT("fpclassify returned %d", f);
+		abort();
 	}
 
 	/* FP_NORMAL or FP_SUBNORMAL */
@@ -290,9 +394,11 @@ __hldtoa(long double e, const char *xdigs, int ndigits, int *decpt, int *sign,
 	 * At this point, we have snarfed all the bits in the
 	 * mantissa, with the possible exception of the highest-order
 	 * (partial) nibble, which is dealt with by the next
-	 * statement.  We also tack on the implicit normalization bit.
+	 * statement.  That nibble is usually in manh, but it could be
+	 * in manl instead for small subnormals.  We also tack on the
+	 * implicit normalization bit if appropriate.
 	 */
-	*s = u.bits.manh | (1U << ((LDBL_MANT_DIG - 1) % 4));
+	*s = u.bits.manh | u.bits.manl | impnbit;
 
 	/* If ndigits < 0, we are expected to auto-size the precision. */
 	if (ndigits < 0) {

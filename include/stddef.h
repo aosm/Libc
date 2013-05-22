@@ -93,13 +93,13 @@ typedef	__darwin_wchar_t	wchar_t;
 #endif	/* __cplusplus */
 #endif /* __STDDEF_H__ || __need_wchar_t */
 
-#if (defined(__STDDEF_H__) && !defined(_ANSI_SOURCE) && (!defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE))) \
+#if (defined(__STDDEF_H__) && !defined(_ANSI_SOURCE) && !defined(_POSIX_C_SOURCE)) \
     || defined(__need_wint_t)
 #ifndef	_WINT_T
 #define	_WINT_T
 typedef	__darwin_wint_t		wint_t;
 #endif	/* _WINT_T */
-#endif /* __STDDEF_H__ && !_ANSI_SOURCE && (!_POSIX_C_SOURCE || _DARWIN_C_SOURCE) || __need_wchar_t */
+#endif /* __STDDEF_H__ && !_ANSI_SOURCE && !_POSIX_C_SOURCE || __need_wchar_t */
 
 #if defined(__STDDEF_H__) || defined(__need_NULL)
 #ifndef NULL
@@ -109,12 +109,12 @@ typedef	__darwin_wint_t		wint_t;
 
 #ifdef __STDDEF_H__
 #if defined(__GNUC__) && (__GNUC__ == 3 && __GNUC_MINOR__ >= 5 || __GNUC__ > 3)
-#ifndef __offsetof	/* Deprecated: for source compatibility only */
+#ifndef __offsetof	/* Deprecated: for source compatability only */
 #define __offsetof(type, field) __builtin_offsetof(type, field)
 #endif
 #define offsetof(type, field) __builtin_offsetof(type, field)
 #else /* ! (gcc >= 3.5) */
-#ifndef __offsetof	/* Deprecated: for source compatibility only */
+#ifndef __offsetof	/* Deprecated: for source compatability only */
 #define __offsetof(type, field) ((size_t)(&((type *)0)->field))
 #endif
 #define offsetof(type, field) ((size_t)(&((type *)0)->field))

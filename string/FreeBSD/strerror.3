@@ -13,6 +13,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -30,7 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)strerror.3	8.1 (Berkeley) 6/9/93
-.\" $FreeBSD: src/lib/libc/string/strerror.3,v 1.24 2007/01/09 00:28:12 imp Exp $
+.\" $FreeBSD: src/lib/libc/string/strerror.3,v 1.23 2004/10/12 14:52:52 keramida Exp $
 .\"
 .Dd October 12, 2004
 .Dt STRERROR 3
@@ -47,26 +51,18 @@
 .Sh SYNOPSIS
 .In stdio.h
 .Ft void
-.Fo perror
-.Fa "const char *s"
-.Fc
+.Fn perror "const char *string"
 .Vt extern const char * const sys_errlist[] ;
 .Vt extern const int sys_nerr ;
 .In string.h
 .Ft "char *"
-.Fo strerror
-.Fa "int errnum"
-.Fc
+.Fn strerror "int errnum"
 .Ft int
-.Fo strerror_r
-.Fa "int errnum"
-.Fa "char *strerrbuf"
-.Fa "size_t buflen"
-.Fc
+.Fn strerror_r "int errnum" "char *strerrbuf" "size_t buflen"
 .Sh DESCRIPTION
 The
 .Fn strerror ,
-.Fn strerror_r ,
+.Fn strerror_r
 and
 .Fn perror
 functions look up the error message string corresponding to an
@@ -96,7 +92,7 @@ value of the global variable
 and writes it, followed by a newline, to the
 standard error file descriptor.
 If the argument
-.Fa s
+.Fa string
 is
 .Pf non- Dv NULL
 and does not point to the null character,
@@ -118,7 +114,7 @@ functions return
 .Er EINVAL
 as a warning.
 Error numbers recognized by this implementation fall in
-the range 0 <=
+the range 0 <
 .Fa errnum
 <
 .Fa sys_nerr .

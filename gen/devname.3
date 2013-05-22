@@ -36,8 +36,7 @@
 .Dt DEVNAME 3
 .Os
 .Sh NAME
-.Nm devname ,
-.Nm devname_r
+.Nm devname
 .Nd get device name
 .Sh LIBRARY
 .Lb libc
@@ -45,17 +44,9 @@
 .In sys/stat.h
 .In stdlib.h
 .Ft char *
-.Fo devname
-.Fa "dev_t dev"
-.Fa "mode_t type"
-.Fc
+.Fn devname "dev_t dev" "mode_t type"
 .Ft char *
-.Fo devname_r
-.Fa "dev_t dev"
-.Fa "mode_t type"
-.Fa "char *buf"
-.Fa "int len"
-.Fc
+.Fn devname_r "dev_t dev" "mode_t type" "char *buf" "int len"
 .Sh DESCRIPTION
 The
 .Fn devname

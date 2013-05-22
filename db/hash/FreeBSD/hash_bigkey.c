@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,7 +38,7 @@
 static char sccsid[] = "@(#)hash_bigkey.c	8.3 (Berkeley) 5/31/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/db/hash/hash_bigkey.c,v 1.10 2009/03/28 06:47:05 delphij Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/db/hash/hash_bigkey.c,v 1.5 2003/02/16 17:29:09 nectar Exp $");
 
 /*
  * PACKAGE: hash
@@ -68,7 +72,7 @@ __FBSDID("$FreeBSD: src/lib/libc/db/hash/hash_bigkey.c,v 1.10 2009/03/28 06:47:0
 #include <db.h>
 #include "hash.h"
 #include "page.h"
-#include "hash_extern.h"
+#include "extern.h"
 
 static int collect_key(HTAB *, BUFHEAD *, int, DBT *, int);
 static int collect_data(HTAB *, BUFHEAD *, int, int);
@@ -82,12 +86,14 @@ static int collect_data(HTAB *, BUFHEAD *, int, int);
  * 0 ==> OK
  *-1 ==> ERROR
  */
-int
-__big_insert(HTAB *hashp, BUFHEAD *bufp, const DBT *key, const DBT *val)
+extern int
+__big_insert(hashp, bufp, key, val)
+	HTAB *hashp;
+	BUFHEAD *bufp;
+	const DBT *key, *val;
 {
 	u_int16_t *p;
-	int key_size, n;
-	unsigned int val_size;
+	int key_size, n, val_size;
 	u_int16_t space, move_bytes, off;
 	char *cp, *key_data, *val_data;
 
@@ -118,30 +124,18 @@ __big_insert(HTAB *hashp, BUFHEAD *bufp, const DBT *key, const DBT *val)
 			return (-1);
 		n = p[0];
 		if (!key_size) {
-			space = FREESPACE(p);
-			if (space) {
-				move_bytes = MIN(space, val_size);
-				/*
-				 * If the data would fit exactly in the
-				 * remaining space, we must overflow it to the
-				 * next page; otherwise the invariant that the
-				 * data must end on a page with FREESPACE
-				 * non-zero would fail.
-				 */
-				if (space == val_size && val_size == val->size)
-					goto toolarge;
+			if (FREESPACE(p)) {
+				move_bytes = MIN(FREESPACE(p), val_size);
 				off = OFFSET(p) - move_bytes;
+				p[n] = off;
 				memmove(cp + off, val_data, move_bytes);
 				val_data += move_bytes;
 				val_size -= move_bytes;
-				p[n] = off;
 				p[n - 2] = FULL_KEY_DATA;
 				FREESPACE(p) = FREESPACE(p) - move_bytes;
 				OFFSET(p) = off;
-			} else {
-			toolarge:
+			} else
 				p[n - 2] = FULL_KEY;
-			}
 		}
 		p = (u_int16_t *)bufp->page;
 		cp = bufp->page;
@@ -192,8 +186,10 @@ __big_insert(HTAB *hashp, BUFHEAD *bufp, const DBT *key, const DBT *val)
  * 0 => OK
  *-1 => ERROR
  */
-int
-__big_delete(HTAB *hashp, BUFHEAD *bufp)
+extern int
+__big_delete(hashp, bufp)
+	HTAB *hashp;
+	BUFHEAD *bufp;
 {
 	BUFHEAD *last_bfp, *rbufp;
 	u_int16_t *bp, pageno;
@@ -251,12 +247,12 @@ __big_delete(HTAB *hashp, BUFHEAD *bufp)
 	n -= 2;
 	bp[0] = n;
 	FREESPACE(bp) = hashp->BSIZE - PAGE_META(n);
-	OFFSET(bp) = hashp->BSIZE;
+	OFFSET(bp) = hashp->BSIZE - 1;
 
 	bufp->flags |= BUF_MOD;
 	if (rbufp)
 		__free_ovflpage(hashp, rbufp);
-	if (last_bfp && last_bfp != rbufp)
+	if (last_bfp != rbufp)
 		__free_ovflpage(hashp, last_bfp);
 
 	hashp->NKEYS--;
@@ -269,8 +265,13 @@ __big_delete(HTAB *hashp, BUFHEAD *bufp)
  * -2 means key not found and this is big key/data
  * -3 error
  */
-int
-__find_bigpair(HTAB *hashp, BUFHEAD *bufp, int ndx, char *key, int size)
+extern int
+__find_bigpair(hashp, bufp, ndx, key, size)
+	HTAB *hashp;
+	BUFHEAD *bufp;
+	int ndx;
+	char *key;
+	int size;
 {
 	u_int16_t *bp;
 	char *p;
@@ -316,8 +317,10 @@ __find_bigpair(HTAB *hashp, BUFHEAD *bufp, int ndx, char *key, int size)
  * of the pair; 0 if there isn't any (i.e. big pair is the last key in the
  * bucket)
  */
-u_int16_t
-__find_last_page(HTAB *hashp, BUFHEAD **bpp)
+extern u_int16_t
+__find_last_page(hashp, bpp)
+	HTAB *hashp;
+	BUFHEAD **bpp;
 {
 	BUFHEAD *bufp;
 	u_int16_t *bp, pageno;
@@ -355,8 +358,13 @@ __find_last_page(HTAB *hashp, BUFHEAD **bpp)
  * Return the data for the key/data pair that begins on this page at this
  * index (index should always be 1).
  */
-int
-__big_return(HTAB *hashp, BUFHEAD *bufp, int ndx, DBT *val, int set_current)
+extern int
+__big_return(hashp, bufp, ndx, val, set_current)
+	HTAB *hashp;
+	BUFHEAD *bufp;
+	int ndx;
+	DBT *val;
+	int set_current;
 {
 	BUFHEAD *save_p;
 	u_int16_t *bp, len, off, save_addr;
@@ -425,8 +433,8 @@ __big_return(HTAB *hashp, BUFHEAD *bufp, int ndx, DBT *val, int set_current)
 			return (0);
 		}
 
-	val->size = (size_t)collect_data(hashp, bufp, (int)len, set_current);
-	if (val->size == (size_t)-1)
+	val->size = collect_data(hashp, bufp, (int)len, set_current);
+	if (val->size == -1)
 		return (-1);
 	if (save_p->addr != save_addr) {
 		/* We are pretty short on buffers. */
@@ -442,7 +450,10 @@ __big_return(HTAB *hashp, BUFHEAD *bufp, int ndx, DBT *val, int set_current)
  * allocate a buffer and copy the data as you recurse up.
  */
 static int
-collect_data(HTAB *hashp, BUFHEAD *bufp, int len, int set)
+collect_data(hashp, bufp, len, set)
+	HTAB *hashp;
+	BUFHEAD *bufp;
+	int len, set;
 {
 	u_int16_t *bp;
 	char *p;
@@ -494,11 +505,15 @@ collect_data(HTAB *hashp, BUFHEAD *bufp, int len, int set)
 /*
  * Fill in the key and data for this big pair.
  */
-int
-__big_keydata(HTAB *hashp, BUFHEAD *bufp, DBT *key, DBT *val, int set)
+extern int
+__big_keydata(hashp, bufp, key, val, set)
+	HTAB *hashp;
+	BUFHEAD *bufp;
+	DBT *key, *val;
+	int set;
 {
-	key->size = (size_t)collect_key(hashp, bufp, 0, val, set);
-	if (key->size == (size_t)-1)
+	key->size = collect_key(hashp, bufp, 0, val, set);
+	if (key->size == -1)
 		return (-1);
 	key->data = (u_char *)hashp->tmp_key;
 	return (0);
@@ -509,7 +524,12 @@ __big_keydata(HTAB *hashp, BUFHEAD *bufp, DBT *key, DBT *val, int set)
  * collect the data, allocate a buffer and copy the key as you recurse up.
  */
 static int
-collect_key(HTAB *hashp, BUFHEAD *bufp, int len, DBT *val, int set)
+collect_key(hashp, bufp, len, val, set)
+	HTAB *hashp;
+	BUFHEAD *bufp;
+	int len;
+	DBT *val;
+	int set;
 {
 	BUFHEAD *xbp;
 	char *p;
@@ -548,19 +568,23 @@ collect_key(HTAB *hashp, BUFHEAD *bufp, int len, DBT *val, int set)
  *  0 => OK
  * -1 => error
  */
-int
-__big_split(HTAB *hashp,
-    BUFHEAD *op,	/* Pointer to where to put keys that go in old bucket */
-    BUFHEAD *np,	/* Pointer to new bucket page */
-    BUFHEAD *big_keyp,	/* Pointer to first page containing the big key/data */
-    int addr,		/* Address of big_keyp */
-    u_int32_t obucket,	/* Old Bucket */
-    SPLIT_RETURN *ret)
+extern int
+__big_split(hashp, op, np, big_keyp, addr, obucket, ret)
+	HTAB *hashp;
+	BUFHEAD *op;	/* Pointer to where to put keys that go in old bucket */
+	BUFHEAD *np;	/* Pointer to new bucket page */
+			/* Pointer to first page containing the big key/data */
+	BUFHEAD *big_keyp;
+	int addr;	/* Address of big_keyp */
+	u_int32_t   obucket;/* Old Bucket */
+	SPLIT_RETURN *ret;
 {
-	BUFHEAD *bp, *tmpp;
+	BUFHEAD *tmpp;
+	u_int16_t *tp;
+	BUFHEAD *bp;
 	DBT key, val;
 	u_int32_t change;
-	u_int16_t free_space, n, off, *tp;
+	u_int16_t free_space, n, off;
 
 	bp = big_keyp;
 
@@ -572,7 +596,7 @@ __big_split(HTAB *hashp,
 	if ( (ret->next_addr = __find_last_page(hashp, &big_keyp)) ) {
 		if (!(ret->nextp =
 		    __get_buf(hashp, ret->next_addr, big_keyp, 0)))
-			return (-1);
+			return (-1);;
 	} else
 		ret->nextp = NULL;
 

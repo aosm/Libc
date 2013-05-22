@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,7 +38,7 @@
 static char sccsid[] = "@(#)ndbm.c	8.4 (Berkeley) 7/21/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/db/hash/ndbm.c,v 1.7 2007/01/09 00:27:51 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/db/hash/ndbm.c,v 1.6 2002/03/22 21:52:01 obrien Exp $");
 
 /*
  * This package provides a dbm compatible interface to the new hashing
@@ -47,9 +51,6 @@ __FBSDID("$FreeBSD: src/lib/libc/db/hash/ndbm.c,v 1.7 2007/01/09 00:27:51 imp Ex
 #include <string.h>
 #include <errno.h>
 
-#include <db.h>
-#define _DBM
-typedef DB DBM;
 #include <ndbm.h>
 #include "hash.h"
 
@@ -61,8 +62,7 @@ typedef DB DBM;
 extern DBM *
 dbm_open(file, flags, mode)
 	const char *file;
-	int flags;
-	mode_t mode;
+	int flags, mode;
 {
 	HASHINFO info;
 	char path[MAXPATHLEN];
@@ -128,14 +128,10 @@ dbm_firstkey(db)
 	int status;
 	datum retkey;
 	DBT dbtretkey, dbtretdata;
-	HTAB *htab = (HTAB *)(db->internal);
 
 	status = (db->seq)(db, &dbtretkey, &dbtretdata, R_FIRST);
-	if (status) {
+	if (status)
 		dbtretkey.data = NULL;
-		htab->nextkey_eof = 1;
-	} else
-		htab->nextkey_eof = 0;
 	retkey.dptr = dbtretkey.data;
 	retkey.dsize = dbtretkey.size;
 	return (retkey);
@@ -150,20 +146,13 @@ extern datum
 dbm_nextkey(db)
 	DBM *db;
 {
-	int status = 1;
+	int status;
 	datum retkey;
 	DBT dbtretkey, dbtretdata;
-	HTAB *htab = (HTAB *)(db->internal);
 
-	if (htab->nextkey_eof)
+	status = (db->seq)(db, &dbtretkey, &dbtretdata, R_NEXT);
+	if (status)
 		dbtretkey.data = NULL;
-	else {
-		status = (db->seq)(db, &dbtretkey, &dbtretdata, R_NEXT);
-		if (status) {
-			dbtretkey.data = NULL;
-			htab->nextkey_eof = 1;
-		}
-	}
 	retkey.dptr = dbtretkey.data;
 	retkey.dsize = dbtretkey.size;
 	return (retkey);

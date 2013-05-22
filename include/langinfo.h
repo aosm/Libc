@@ -29,6 +29,7 @@
 #ifndef _LANGINFO_H_
 #define	_LANGINFO_H_
 
+#include <sys/cdefs.h>
 #include <_types.h>
 
 #ifndef _NL_ITEM
@@ -102,14 +103,14 @@ typedef	__darwin_nl_item	nl_item;
 #define	YESEXPR		52	/* affirmative response expression */
 #define	NOEXPR		53	/* negative response expression */
 
-#if (__DARWIN_C_LEVEL > __DARWIN_C_ANSI && __DARWIN_C_LEVEL < 200112L) || __DARWIN_C_LEVEL == __DARWIN_C_FULL
+#if !defined(_ANSI_SOURCE)
 #define	YESSTR		54	/* affirmative response for yes/no queries */
 #define	NOSTR		55	/* negative response for yes/no queries */
 #endif
 
 #define	CRNCYSTR	56	/* currency symbol */
 
-#if !defined(_ANSI_SOURCE) && (!defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE))
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_C_SOURCE)
 #define	D_MD_ORDER	57	/* month/day order (local extension) */
 #endif
 

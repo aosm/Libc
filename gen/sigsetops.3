@@ -36,10 +36,10 @@
 .Dt SIGSETOPS 3
 .Os
 .Sh NAME
-.Nm sigaddset ,
-.Nm sigdelset ,
 .Nm sigemptyset ,
 .Nm sigfillset ,
+.Nm sigaddset ,
+.Nm sigdelset ,
 .Nm sigismember
 .Nd manipulate signal sets
 .Sh LIBRARY
@@ -47,30 +47,17 @@
 .Sh SYNOPSIS
 .In signal.h
 .Ft int
-.Fo sigaddset
-.Fa "sigset_t *set"
-.Fa "int signo"
-.Fc
+.Fn sigemptyset "sigset_t *set"
 .Ft int
-.Fo sigdelset
-.Fa "sigset_t *set"
-.Fa "int signo"
-.Fc
+.Fn sigfillset "sigset_t *set"
 .Ft int
-.Fo sigemptyset
-.Fa "sigset_t *set"
-.Fc
+.Fn sigaddset "sigset_t *set" "int signo"
 .Ft int
-.Fo sigfillset
-.Fa "sigset_t *set"
-.Fc
+.Fn sigdelset "sigset_t *set" "int signo"
 .Ft int
-.Fo sigismember
-.Fa "const sigset_t *set"
-.Fa "int signo"
-.Fc
+.Fn sigismember "const sigset_t *set" "int signo"
 .Sh DESCRIPTION
-These functions manipulate signal sets, stored in a
+These functions manipulate signal sets stored in a
 .Fa sigset_t .
 Either
 .Fn sigemptyset
@@ -119,7 +106,7 @@ if the signal is a member of the set,
 0 otherwise.
 The other functions return 0.
 .Sh ERRORS
-Currently, no errors are detected.
+Currently no errors are detected.
 .Sh SEE ALSO
 .Xr kill 2 ,
 .Xr sigaction 2 ,

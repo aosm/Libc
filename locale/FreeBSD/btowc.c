@@ -27,21 +27,18 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD: src/lib/libc/locale/btowc.c,v 1.4 2004/05/12 14:26:54 tjr Exp $");
 
-#include "xlocale_private.h"
-
 #include <stdio.h>
 #include <wchar.h>
 #include "mblocal.h"
 
 wint_t
-btowc_l(int c, locale_t loc)
+btowc(int c)
 {
 	static const mbstate_t initial;
 	mbstate_t mbs = initial;
 	char cc;
 	wchar_t wc;
 
-	NORMALIZE_LOCALE(loc);
 	if (c == EOF)
 		return (WEOF);
 	/*
@@ -50,13 +47,7 @@ btowc_l(int c, locale_t loc)
 	 * counts.
 	 */
 	cc = (char)c;
-	if (loc->__lc_ctype->__mbrtowc(&wc, &cc, 1, &mbs, loc) > 1)
+	if (__mbrtowc(&wc, &cc, 1, &mbs) > 1)
 		return (WEOF);
 	return (wc);
-}
-
-wint_t
-btowc(int c)
-{
-	return btowc_l(c, __current_locale());
 }

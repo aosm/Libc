@@ -9,6 +9,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -26,29 +30,24 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)scandir.3	8.1 (Berkeley) 6/4/93
-.\" $FreeBSD: src/lib/libc/gen/scandir.3,v 1.9 2007/01/09 00:27:55 imp Exp $
+.\" $FreeBSD: src/lib/libc/gen/scandir.3,v 1.8 2002/12/19 09:40:21 ru Exp $
 .\"
-.Dd May 20, 2008
+.Dd June 4, 1993
 .Dt SCANDIR 3
 .Os
 .Sh NAME
 .Nm scandir ,
-#ifdef UNIFDEF_BLOCKS
-.Nm scandir_b ,
-#endif
 .Nm alphasort
 .Nd scan a directory
+.Sh LIBRARY
+.Lb libc
 .Sh SYNOPSIS
 .In sys/types.h
 .In dirent.h
 .Ft int
-.Fn scandir "const char *dirname" "struct dirent ***namelist" "int \\*(lp*select\\*(rp\\*(lpconst struct dirent *\\*(rp" "int \\*(lp*compar\\*(rp\\*(lpconst struct dirent **, const struct dirent **\\*(rp"
+.Fn scandir "const char *dirname" "struct dirent ***namelist" "int \\*(lp*select\\*(rp\\*(lpstruct dirent *\\*(rp" "int \\*(lp*compar\\*(rp\\*(lpconst void *, const void *\\*(rp"
 .Ft int
-.Fn alphasort "const struct dirent **d1" "const struct dirent **d2"
-#ifdef UNIFDEF_BLOCKS
-.Ft int
-.Fn scandir_b "const char *dirname" "struct dirent ***namelist" "int \\*(lp^select\\*(rp\\*(lpconst struct dirent *\\*(rp" "int \\*(lp^compar\\*(rp\\*(lpconst struct dirent **, const struct dirent **\\*(rp"
-#endif
+.Fn alphasort "const void *d1" "const void *d2"
 .Sh DESCRIPTION
 The
 .Fn scandir
@@ -92,18 +91,6 @@ argument to sort the array alphabetically.
 The memory allocated for the array can be deallocated with
 .Xr free 3 ,
 by freeing each pointer in the array and then the array itself.
-#ifdef UNIFDEF_BLOCKS
-.Pp
-The
-.Fn scandir_b
-function works the same way as the
-.Fn scandir
-function, except that
-.Fa select
-and
-.Fa compar
-are blocks instead of subroutines.
-#endif
 .Sh DIAGNOSTICS
 Returns \-1 if the directory cannot be opened for reading or if
 .Xr malloc 3
@@ -120,8 +107,3 @@ and
 .Fn alphasort
 functions appeared in
 .Bx 4.2 .
-#ifdef UNIFDEF_BLOCKS
-The
-.Fn scandir_b
-function appeared in Mac OS X 10.6.
-#endif

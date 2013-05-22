@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,9 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/locale/setrunelocale.c,v 1.51 2008/01/23 03:05:35 ache Exp $");
-
-#include "xlocale_private.h"
+__FBSDID("$FreeBSD: src/lib/libc/locale/setrunelocale.c,v 1.44 2004/10/18 02:06:18 ache Exp $");
 
 #include <runetype.h>
 #include <errno.h>
@@ -47,60 +49,67 @@ __FBSDID("$FreeBSD: src/lib/libc/locale/setrunelocale.c,v 1.51 2008/01/23 03:05:
 #include "mblocal.h"
 #include "setlocale.h"
 
-extern struct __xlocale_st_runelocale	*_Read_RuneMagi(FILE *);
+extern int		_none_init(_RuneLocale *);
+extern int		_UTF8_init(_RuneLocale *);
+extern int		_EUC_init(_RuneLocale *);
+extern int		_GB18030_init(_RuneLocale *);
+extern int		_GB2312_init(_RuneLocale *);
+extern int		_GBK_init(_RuneLocale *);
+extern int		_BIG5_init(_RuneLocale *);
+extern int		_MSKanji_init(_RuneLocale *);
+extern _RuneLocale	*_Read_RuneMagi(FILE *);
 
-#ifdef UNIFDEF_LEGACY_RUNE_APIS
-/* depreciated interfaces */
-rune_t	sgetrune(const char *, size_t, char const **);
-int	sputrune(rune_t, char *, size_t, char **);
-#endif /* UNIFDEF_LEGACY_RUNE_APIS */
+static int		__setrunelocale(const char *);
 
-__private_extern__ int
-__setrunelocale(const char *encoding, locale_t loc)
+static int
+__setrunelocale(const char *encoding)
 {
 	FILE *fp;
 	char name[PATH_MAX];
-	struct __xlocale_st_runelocale *xrl;
 	_RuneLocale *rl;
 	int saverr, ret;
-	static struct __xlocale_st_runelocale *CachedRuneLocale;
-	extern int __mb_cur_max;
-	extern int __mb_sb_limit;
-	static pthread_lock_t cache_lock = LOCK_INITIALIZER;
+	static char ctype_encoding[ENCODING_LEN + 1];
+	static _RuneLocale *CachedRuneLocale;
+	static int Cached__mb_cur_max;
+	static size_t (*Cached__mbrtowc)(wchar_t * __restrict,
+	    const char * __restrict, size_t, mbstate_t * __restrict);
+	static size_t (*Cached__wcrtomb)(char * __restrict, wchar_t,
+	    mbstate_t * __restrict);
+	static int (*Cached__mbsinit)(const mbstate_t *);
+	static size_t (*Cached__mbsnrtowcs)(wchar_t * __restrict,
+	    const char ** __restrict, size_t, size_t, mbstate_t * __restrict);
+	static size_t (*Cached__wcsnrtombs)(char * __restrict,
+	    const wchar_t ** __restrict, size_t, size_t,
+	    mbstate_t * __restrict);
 
 	/*
 	 * The "C" and "POSIX" locale are always here.
 	 */
 	if (strcmp(encoding, "C") == 0 || strcmp(encoding, "POSIX") == 0) {
-		XL_RELEASE(loc->__lc_ctype);
-		loc->__lc_ctype = &_DefaultRuneXLocale;
-		/* no need to retain _DefaultRuneXLocale */
-		if (loc == &__global_locale) {
-			_CurrentRuneLocale = &loc->__lc_ctype->_CurrentRuneLocale;
-			__mb_cur_max = loc->__lc_ctype->__mb_cur_max;
-			__mb_sb_limit = loc->__lc_ctype->__mb_sb_limit;
-		}
+		_CurrentRuneLocale = &_DefaultRuneLocale;
+		__mb_cur_max = 1;
+		__mbrtowc = _none_mbrtowc;
+		__mbsinit = _none_mbsinit;
+		__mbsnrtowcs = _none_mbsnrtowcs;
+		__wcrtomb = _none_wcrtomb;
+		__wcsnrtombs = _none_wcsnrtombs;
 		return (0);
 	}
 
 	/*
 	 * If the locale name is the same as our cache, use the cache.
 	 */
-	LOCK(cache_lock);
 	if (CachedRuneLocale != NULL &&
-	    strcmp(encoding, CachedRuneLocale->__ctype_encoding) == 0) {
-		XL_RELEASE(loc->__lc_ctype);
-		loc->__lc_ctype = CachedRuneLocale;
-		XL_RETAIN(loc->__lc_ctype);
-		if (loc == &__global_locale) {
-			_CurrentRuneLocale = &loc->__lc_ctype->_CurrentRuneLocale;
-			__mb_cur_max = loc->__lc_ctype->__mb_cur_max;
-			__mb_sb_limit = loc->__lc_ctype->__mb_sb_limit;
-		}
-		UNLOCK(cache_lock);
+	    strcmp(encoding, ctype_encoding) == 0) {
+		_CurrentRuneLocale = CachedRuneLocale;
+		__mb_cur_max = Cached__mb_cur_max;
+		__mbrtowc = Cached__mbrtowc;
+		__mbsinit = Cached__mbsinit;
+		__mbsnrtowcs = Cached__mbsnrtowcs;
+		__wcrtomb = Cached__wcrtomb;
+		__wcsnrtombs = Cached__wcsnrtombs;
 		return (0);
 	}
-	UNLOCK(cache_lock);
 
 	/*
 	 * Slurp the locale file into the cache.
@@ -115,90 +124,63 @@ __setrunelocale(const char *encoding, locale_t loc)
 	if ((fp = fopen(name, "r")) == NULL)
 		return (errno == 0 ? ENOENT : errno);
 
-	if ((xrl = _Read_RuneMagi(fp)) == NULL) {
+	if ((rl = _Read_RuneMagi(fp)) == NULL) {
 		saverr = (errno == 0 ? EFTYPE : errno);
 		(void)fclose(fp);
 		return (saverr);
 	}
 	(void)fclose(fp);
 
-	xrl->__mbrtowc = NULL;
-	xrl->__mbsinit = NULL;
-	xrl->__mbsnrtowcs = __mbsnrtowcs_std;
-	xrl->__wcrtomb = NULL;
-	xrl->__wcsnrtombs = __wcsnrtombs_std;
-
-	rl = &xrl->_CurrentRuneLocale;
-
-#ifdef UNIFDEF_LEGACY_RUNE_APIS
-	/* provide backwards compatibility (depreciated interface) */
-	rl->__sputrune = sputrune;
-	rl->__sgetrune = sgetrune;
-#else /* UNIFDEF_LEGACY_RUNE_APIS */
+	__mbrtowc = NULL;
+	__mbsinit = NULL;
+	__mbsnrtowcs = __mbsnrtowcs_std;
+	__wcrtomb = NULL;
+	__wcsnrtombs = __wcsnrtombs_std;
 	rl->__sputrune = NULL;
 	rl->__sgetrune = NULL;
-#endif /* UNIFDEF_LEGACY_RUNE_APIS */
-
 	if (strcmp(rl->__encoding, "NONE") == 0)
-		ret = _none_init(xrl);
-	else if (strcmp(rl->__encoding, "ASCII") == 0)
-		ret = _ascii_init(xrl);
+		ret = _none_init(rl);
 	else if (strcmp(rl->__encoding, "UTF-8") == 0)
-		ret = _UTF8_init(xrl);
+		ret = _UTF8_init(rl);
 	else if (strcmp(rl->__encoding, "EUC") == 0)
-		ret = _EUC_init(xrl);
-	else if (strcmp(rl->__encoding, "GB18030") == 0)
- 		ret = _GB18030_init(xrl);
+		ret = _EUC_init(rl);
+ 	else if (strcmp(rl->__encoding, "GB18030") == 0)
+ 		ret = _GB18030_init(rl);
 	else if (strcmp(rl->__encoding, "GB2312") == 0)
-		ret = _GB2312_init(xrl);
+		ret = _GB2312_init(rl);
 	else if (strcmp(rl->__encoding, "GBK") == 0)
-		ret = _GBK_init(xrl);
+		ret = _GBK_init(rl);
 	else if (strcmp(rl->__encoding, "BIG5") == 0)
-		ret = _BIG5_init(xrl);
+		ret = _BIG5_init(rl);
 	else if (strcmp(rl->__encoding, "MSKanji") == 0)
-		ret = _MSKanji_init(xrl);
-	else if (strcmp(rl->__encoding, "UTF2") == 0)
-		ret = _UTF2_init(xrl);
+		ret = _MSKanji_init(rl);
 	else
 		ret = EFTYPE;
-
 	if (ret == 0) {
-		(void)strcpy(xrl->__ctype_encoding, encoding);
-		XL_RELEASE(loc->__lc_ctype);
-		loc->__lc_ctype = xrl;
-		if (loc == &__global_locale) {
-			_CurrentRuneLocale = &loc->__lc_ctype->_CurrentRuneLocale;
-			__mb_cur_max = loc->__lc_ctype->__mb_cur_max;
-			__mb_sb_limit = loc->__lc_ctype->__mb_sb_limit;
+		if (CachedRuneLocale != NULL) {
+			/* See euc.c */
+			if (strcmp(CachedRuneLocale->__encoding, "EUC") == 0)
+				free(CachedRuneLocale->__variable);
+			free(CachedRuneLocale);
 		}
-		LOCK(cache_lock);
-		XL_RELEASE(CachedRuneLocale);
-		CachedRuneLocale = xrl;
-		XL_RETAIN(CachedRuneLocale);
-		UNLOCK(cache_lock);
+		CachedRuneLocale = _CurrentRuneLocale;
+		Cached__mb_cur_max = __mb_cur_max;
+		Cached__mbrtowc = __mbrtowc;
+		Cached__mbsinit = __mbsinit;
+		Cached__mbsnrtowcs = __mbsnrtowcs;
+		Cached__wcrtomb = __wcrtomb;
+		Cached__wcsnrtombs = __wcsnrtombs;
+		(void)strcpy(ctype_encoding, encoding);
 	} else
-		XL_RELEASE(xrl);
+		free(rl);
 
 	return (ret);
 }
 
-#ifdef UNIFDEF_LEGACY_RUNE_APIS
 int
-setrunelocale(const char *encoding)
+__wrap_setrunelocale(const char *locale)
 {
-	int ret;
-
-	XL_LOCK(&__global_locale);
-	ret = __setrunelocale(encoding, &__global_locale);
-	XL_UNLOCK(&__global_locale);
-	return ret;
-}
-#endif /* UNIFDEF_LEGACY_RUNE_APIS */
-
-__private_extern__ int
-__wrap_setrunelocale(const char *locale, locale_t loc)
-{
-	int ret = __setrunelocale(locale, loc);
+	int ret = __setrunelocale(locale);
 
 	if (ret != 0) {
 		errno = ret;

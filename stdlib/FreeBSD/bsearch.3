@@ -13,6 +13,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -30,39 +34,32 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)bsearch.3	8.3 (Berkeley) 4/19/94
-.\" $FreeBSD: src/lib/libc/stdlib/bsearch.3,v 1.9 2007/01/09 00:28:09 imp Exp $
+.\" $FreeBSD: src/lib/libc/stdlib/bsearch.3,v 1.8 2001/09/07 14:46:35 asmodai Exp $
 .\"
-.Dd May 20, 2008
+.Dd April 19, 1994
 .Dt BSEARCH 3
 .Os
 .Sh NAME
-#ifdef UNIFDEF_BLOCKS
-.Nm bsearch ,
-.Nm bsearch_b
-#else
 .Nm bsearch
-#endif
 .Nd binary search of a sorted table
+.Sh LIBRARY
+.Lb libc
 .Sh SYNOPSIS
 .In stdlib.h
 .Ft void *
-.Fn bsearch "const void *key" "const void *base" "size_t nel" "size_t width" "int (*compar) (const void *, const void *)"
-#ifdef UNIFDEF_BLOCKS
-.Ft void *
-.Fn bsearch_b "const void *key" "const void *base" "size_t nel" "size_t width" "int (^compar) (const void *, const void *)"
-#endif
+.Fn bsearch "const void *key" "const void *base" "size_t nmemb" "size_t size" "int (*compar) (const void *, const void *)"
 .Sh DESCRIPTION
 The
 .Fn bsearch
 function searches an array of
-.Fa nel
+.Fa nmemb
 objects, the initial member of which is
 pointed to by
 .Fa base ,
 for a member that matches the object pointed to by
 .Fa key .
-The size (in bytes) of each member of the array is specified by
-.Fa width .
+The size of each member of the array is specified by
+.Fa size .
 .Pp
 The contents of the array should be in ascending sorted order according
 to the comparison function referenced by
@@ -73,33 +70,15 @@ routine
 is expected to have
 two arguments which point to the
 .Fa key
-object and to an array member, in that order.
-It should return an integer which is
+object and to an array member, in that order, and should return an integer
 less than, equal to, or greater than zero if the
 .Fa key
 object is found, respectively, to be less than, to match, or be
 greater than the array member.
-#ifdef UNIFDEF_BLOCKS
-.Pp
-The
-.Fn bsearch_b
-function is like
-.Fn bsearch
-except the callback
-.Fa compar
-is a block pointer instead of a function pointer.
-#endif
 .Sh RETURN VALUES
 The
 .Fn bsearch
-#ifdef UNIFDEF_BLOCKS
-and
-.Fn bsearch_b
-functions
-#else
-function
-#endif
-returns a pointer to a matching member of the array, or a null
+function returns a pointer to a matching member of the array, or a null
 pointer if no match is found.
 If two members compare as equal, which member is matched is unspecified.
 .Sh SEE ALSO

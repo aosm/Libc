@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,9 +38,7 @@
 static char sccsid[] = "@(#)fscanf.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdio/fscanf.c,v 1.13 2007/01/09 00:28:06 imp Exp $");
-
-#include "xlocale_private.h"
+__FBSDID("$FreeBSD: src/lib/libc/stdio/fscanf.c,v 1.12 2003/01/03 23:27:27 tjr Exp $");
 
 #include "namespace.h"
 #include <stdio.h>
@@ -53,22 +55,7 @@ fscanf(FILE * __restrict fp, char const * __restrict fmt, ...)
 
 	va_start(ap, fmt);
 	FLOCKFILE(fp);
-	ret = __svfscanf_l(fp, __current_locale(), fmt, ap);
-	va_end(ap);
-	FUNLOCKFILE(fp);
-	return (ret);
-}
-
-int
-fscanf_l(FILE * __restrict fp, locale_t loc, char const * __restrict fmt, ...)
-{
-	int ret;
-	va_list ap;
-
-	NORMALIZE_LOCALE(loc);
-	va_start(ap, fmt);
-	FLOCKFILE(fp);
-	ret = __svfscanf_l(fp, loc, fmt, ap);
+	ret = __svfscanf(fp, fmt, ap);
 	va_end(ap);
 	FUNLOCKFILE(fp);
 	return (ret);

@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,7 +38,7 @@
 static char sccsid[] = "@(#)merge.c	8.2 (Berkeley) 2/14/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdlib/merge.c,v 1.8 2007/01/09 00:28:10 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/merge.c,v 1.6 2002/03/21 22:48:42 obrien Exp $");
 
 /*
  * Hybrid exponential search/linear search merge sort with hybrid
@@ -56,10 +60,8 @@ __FBSDID("$FreeBSD: src/lib/libc/stdlib/merge.c,v 1.8 2007/01/09 00:28:10 imp Ex
 #include <stdlib.h>
 #include <string.h>
 
-static void setup(u_char *, u_char *, size_t, size_t,
-    int (*)(const void *, const void *));
-static void insertionsort(u_char *, size_t, size_t,
-    int (*)(const void *, const void *));
+static void setup(u_char *, u_char *, size_t, size_t, int (*)());
+static void insertionsort(u_char *, size_t, size_t, int (*)());
 
 #define ISIZE sizeof(int)
 #define PSIZE sizeof(u_char *)
@@ -101,8 +103,7 @@ mergesort(base, nmemb, size, cmp)
 	size_t size;
 	int (*cmp)(const void *, const void *);
 {
-	size_t i;
-	int sense;
+	int i, sense;
 	int big, iflag;
 	u_char *f1, *f2, *t, *b, *tp2, *q, *l1, *l2;
 	u_char *list2, *list1, *p2, *p, *last, **p1;
@@ -264,8 +265,7 @@ setup(list1, list2, n, size, cmp)
 	int (*cmp)(const void *, const void *);
 	u_char *list1, *list2;
 {
-	size_t i, size2;
-	int length, tmp, sense;
+	int i, length, size2, tmp, sense;
 	u_char *f1, *f2, *s, *l2, *last, *p2;
 
 	size2 = size*2;

@@ -1,5 +1,3 @@
-/*	$NetBSD: fmtcheck.c,v 1.8 2008/04/28 20:22:59 martin Exp $	*/
-
 /*-
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -14,6 +12,13 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *        This product includes software developed by the NetBSD
+ *        Foundation, Inc. and its contributors.
+ * 4. Neither the name of The NetBSD Foundation nor the names of its
+ *    contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -28,8 +33,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*	$NetBSD: fmtcheck.c,v 1.2 2000/11/01 01:17:20 briggs Exp $	*/
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gen/fmtcheck.c,v 1.10 2009/06/23 23:52:12 delphij Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/gen/fmtcheck.c,v 1.7 2004/05/02 10:55:05 das Exp $");
 
 #include <stdio.h>
 #include <string.h>
@@ -41,18 +47,14 @@ enum __e_fmtcheck_types {
 	FMTCHECK_START,
 	FMTCHECK_SHORT,
 	FMTCHECK_INT,
-	FMTCHECK_WINTT,
 	FMTCHECK_LONG,
 	FMTCHECK_QUAD,
-	FMTCHECK_INTMAXT,
 	FMTCHECK_PTRDIFFT,
 	FMTCHECK_SIZET,
-	FMTCHECK_CHARPOINTER,
 	FMTCHECK_SHORTPOINTER,
 	FMTCHECK_INTPOINTER,
 	FMTCHECK_LONGPOINTER,
 	FMTCHECK_QUADPOINTER,
-	FMTCHECK_INTMAXTPOINTER,
 	FMTCHECK_PTRDIFFTPOINTER,
 	FMTCHECK_SIZETPOINTER,
 #ifndef NO_FLOATING_POINT
@@ -60,25 +62,12 @@ enum __e_fmtcheck_types {
 	FMTCHECK_LONGDOUBLE,
 #endif
 	FMTCHECK_STRING,
-	FMTCHECK_WSTRING,
 	FMTCHECK_WIDTH,
 	FMTCHECK_PRECISION,
 	FMTCHECK_DONE,
 	FMTCHECK_UNKNOWN
 };
 typedef enum __e_fmtcheck_types EFT;
-
-enum e_modifier {
-	MOD_NONE,
-	MOD_CHAR,
-	MOD_SHORT,
-	MOD_LONG,
-	MOD_QUAD,
-	MOD_INTMAXT,
-	MOD_LONGDOUBLE,
-	MOD_PTRDIFFT,
-	MOD_SIZET,
-};
 
 #define RETURN(pf,f,r) do { \
 			*(pf) = (f); \
@@ -88,148 +77,101 @@ enum e_modifier {
 static EFT
 get_next_format_from_precision(const char **pf)
 {
-	enum e_modifier	modifier;
+	int		sh, lg, quad, longdouble, ptrdifft, sizet;
 	const char	*f;
+
+	sh = lg = quad = longdouble = ptrdifft = sizet = 0;
 
 	f = *pf;
 	switch (*f) {
 	case 'h':
 		f++;
-		if (!*f) RETURN(pf,f,FMTCHECK_UNKNOWN);
-		if (*f == 'h') {
-			f++;
-			modifier = MOD_CHAR;
-		} else {
-			modifier = MOD_SHORT;
-		}
-		break;
-	case 'j':
-		f++;
-		modifier = MOD_INTMAXT;
+		sh = 1;
 		break;
 	case 'l':
 		f++;
 		if (!*f) RETURN(pf,f,FMTCHECK_UNKNOWN);
 		if (*f == 'l') {
 			f++;
-			modifier = MOD_QUAD;
+			quad = 1;
 		} else {
-			modifier = MOD_LONG;
+			lg = 1;
 		}
 		break;
 	case 'q':
 		f++;
-		modifier = MOD_QUAD;
+		quad = 1;
 		break;
 	case 't':
 		f++;
-		modifier = MOD_PTRDIFFT;
+		ptrdifft = 1;
 		break;
 	case 'z':
 		f++;
-		modifier = MOD_SIZET;
+		sizet = 1;
 		break;
 	case 'L':
 		f++;
-		modifier = MOD_LONGDOUBLE;
+		longdouble = 1;
 		break;
 	default:
-		modifier = MOD_NONE;
 		break;
 	}
 	if (!*f) RETURN(pf,f,FMTCHECK_UNKNOWN);
 	if (strchr("diouxX", *f)) {
-		switch (modifier) {
-		case MOD_LONG:
-			RETURN(pf,f,FMTCHECK_LONG);
-		case MOD_QUAD:
-			RETURN(pf,f,FMTCHECK_QUAD);
-		case MOD_INTMAXT:
-			RETURN(pf,f,FMTCHECK_INTMAXT);
-		case MOD_PTRDIFFT:
-			RETURN(pf,f,FMTCHECK_PTRDIFFT);
-		case MOD_SIZET:
-			RETURN(pf,f,FMTCHECK_SIZET);
-		case MOD_CHAR:
-		case MOD_SHORT:
-		case MOD_NONE:
-			RETURN(pf,f,FMTCHECK_INT);
-		default:
+		if (longdouble)
 			RETURN(pf,f,FMTCHECK_UNKNOWN);
-		}
+		if (lg)
+			RETURN(pf,f,FMTCHECK_LONG);
+		if (quad)
+			RETURN(pf,f,FMTCHECK_QUAD);
+		if (ptrdifft)
+			RETURN(pf,f,FMTCHECK_PTRDIFFT);
+		if (sizet)
+			RETURN(pf,f,FMTCHECK_SIZET);
+		RETURN(pf,f,FMTCHECK_INT);
 	}
 	if (*f == 'n') {
-		switch (modifier) {
-		case MOD_CHAR:
-			RETURN(pf,f,FMTCHECK_CHARPOINTER);
-		case MOD_SHORT:
-			RETURN(pf,f,FMTCHECK_SHORTPOINTER);
-		case MOD_LONG:
-			RETURN(pf,f,FMTCHECK_LONGPOINTER);
-		case MOD_QUAD:
-			RETURN(pf,f,FMTCHECK_QUADPOINTER);
-		case MOD_INTMAXT:
-			RETURN(pf,f,FMTCHECK_INTMAXTPOINTER);
-		case MOD_PTRDIFFT:
-			RETURN(pf,f,FMTCHECK_PTRDIFFTPOINTER);
-		case MOD_SIZET:
-			RETURN(pf,f,FMTCHECK_SIZETPOINTER);
-		case MOD_NONE:
-			RETURN(pf,f,FMTCHECK_INTPOINTER);
-		default:
+		if (longdouble)
 			RETURN(pf,f,FMTCHECK_UNKNOWN);
-		}
+		if (sh)
+			RETURN(pf,f,FMTCHECK_SHORTPOINTER);
+		if (lg)
+			RETURN(pf,f,FMTCHECK_LONGPOINTER);
+		if (quad)
+			RETURN(pf,f,FMTCHECK_QUADPOINTER);
+		if (ptrdifft)
+			RETURN(pf,f,FMTCHECK_PTRDIFFTPOINTER);
+		if (sizet)
+			RETURN(pf,f,FMTCHECK_SIZETPOINTER);
+		RETURN(pf,f,FMTCHECK_INTPOINTER);
 	}
 	if (strchr("DOU", *f)) {
-		if (modifier != MOD_NONE)
+		if (sh + lg + quad + longdouble + ptrdifft + sizet)
 			RETURN(pf,f,FMTCHECK_UNKNOWN);
 		RETURN(pf,f,FMTCHECK_LONG);
 	}
 #ifndef NO_FLOATING_POINT
 	if (strchr("aAeEfFgG", *f)) {
-		switch (modifier) {
-		case MOD_LONGDOUBLE:
+		if (longdouble)
 			RETURN(pf,f,FMTCHECK_LONGDOUBLE);
-		case MOD_LONG:
-		case MOD_NONE:
-			RETURN(pf,f,FMTCHECK_DOUBLE);
-		default:
+		if (sh + lg + quad + ptrdifft + sizet)
 			RETURN(pf,f,FMTCHECK_UNKNOWN);
-		}
+		RETURN(pf,f,FMTCHECK_DOUBLE);
 	}
 #endif
 	if (*f == 'c') {
-		switch (modifier) {
-		case MOD_LONG:
-			RETURN(pf,f,FMTCHECK_WINTT);
-		case MOD_NONE:
-			RETURN(pf,f,FMTCHECK_INT);
-		default:
+		if (sh + lg + quad + longdouble + ptrdifft + sizet)
 			RETURN(pf,f,FMTCHECK_UNKNOWN);
-		}
-	}
-	if (*f == 'C') {
-		if (modifier != MOD_NONE)
-			RETURN(pf,f,FMTCHECK_UNKNOWN);
-		RETURN(pf,f,FMTCHECK_WINTT);
+		RETURN(pf,f,FMTCHECK_INT);
 	}
 	if (*f == 's') {
-		switch (modifier) {
-		case MOD_LONG:
-			RETURN(pf,f,FMTCHECK_WSTRING);
-		case MOD_NONE:
-			RETURN(pf,f,FMTCHECK_STRING);
-		default:
+		if (sh + lg + quad + longdouble + ptrdifft + sizet)
 			RETURN(pf,f,FMTCHECK_UNKNOWN);
-		}
-	}
-	if (*f == 'S') {
-		if (modifier != MOD_NONE)
-			RETURN(pf,f,FMTCHECK_UNKNOWN);
-		RETURN(pf,f,FMTCHECK_WSTRING);
+		RETURN(pf,f,FMTCHECK_STRING);
 	}
 	if (*f == 'p') {
-		if (modifier != MOD_NONE)
+		if (sh + lg + quad + longdouble + ptrdifft + sizet)
 			RETURN(pf,f,FMTCHECK_UNKNOWN);
 		RETURN(pf,f,FMTCHECK_LONG);
 	}
@@ -286,7 +228,7 @@ get_next_format(const char **pf, EFT eft)
 	}
 
 	/* Eat any of the flags */
-	while (*f && (strchr("#'0- +", *f)))
+	while (*f && (strchr("#0- +", *f)))
 		f++;
 
 	if (*f == '*') {
@@ -302,7 +244,7 @@ get_next_format(const char **pf, EFT eft)
 	/*NOTREACHED*/
 }
 
-const char *
+__const char *
 __fmtcheck(const char *f1, const char *f2)
 {
 	const char	*f1p, *f2p;

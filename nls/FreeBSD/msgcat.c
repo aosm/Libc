@@ -31,7 +31,7 @@ up-to-date.  Many thanks.
 ******************************************************************/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/nls/msgcat.c,v 1.49 2005/02/01 16:04:55 phantom Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/nls/msgcat.c,v 1.48 2003/10/29 10:45:01 tjr Exp $");
 
 /*
  * We need a better way of handling errors than printing text.  I need
@@ -45,22 +45,16 @@ __FBSDID("$FreeBSD: src/lib/libc/nls/msgcat.c,v 1.49 2005/02/01 16:04:55 phantom
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <xlocale.h>
+#include <locale.h>
 #include <nl_types.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <machine/endian.h>
-#include <libkern/OSByteOrder.h>
 #include "un-namespace.h"
 
 #include "msgcat.h"
-#include "setlocale.h"        /* for ENCODING_LEN */
-
-#ifndef ntohll
-#define ntohll(x) OSSwapBigToHostInt64(x)
-#endif
+#include "../locale/setlocale.h"        /* for ENCODING_LEN */
 
 #define _DEFAULT_NLS_PATH "/usr/share/nls/%L/%N.cat:/usr/share/nls/%N/%L:/usr/local/share/nls/%L/%N.cat:/usr/local/share/nls/%N/%L"
 
@@ -70,12 +64,14 @@ __FBSDID("$FreeBSD: src/lib/libc/nls/msgcat.c,v 1.49 2005/02/01 16:04:55 phantom
 #define	NLERR		((nl_catd) -1)
 #define NLRETERR(errc)  { errno = errc; return (NLERR); }
 
-static nl_catd  loadCat(__const char *);
-static int      loadSet(MCCatT *, MCSetT *);
-static void     __nls_free_resources(MCCatT *, int);
+static nl_catd  loadCat();
+static int      loadSet();
+static void     __nls_free_resources();
 
 nl_catd
-catopen(__const char *name, int type)
+catopen(name, type)
+	__const char    *name;
+	int             type;
 {
 	int             spcleft, saverr;
 	char            path[PATH_MAX];
@@ -91,7 +87,7 @@ catopen(__const char *name, int type)
 		return (loadCat(name));
 
 	if (type == NL_CAT_LOCALE)
-		lang = (char *)querylocale(LC_MESSAGES_MASK, NULL);
+		lang = setlocale(LC_MESSAGES, NULL);
 	else
 		lang = getenv("LANG");
 
@@ -162,7 +158,7 @@ catopen(__const char *name, int type)
 						  (pathP - path) - 1;
 					if (strlcpy(pathP, tmpptr, spcleft) >=
 					    spcleft) {
-			too_long:
+				too_long:
 						free(plang);
 						free(base);
 						NLRETERR(ENAMETOOLONG);
@@ -214,21 +210,21 @@ catopen(__const char *name, int type)
 
 #define LOOKUP(PARENT, CHILD, ID, NUM, SET) {                    \
 	lo = 0;                                                  \
-	if (ID - 1 < NUM) {                              \
+	if (ID - 1 < PARENT->NUM) {                              \
 		cur = ID - 1;                                    \
 		hi = ID;                                         \
 	} else {                                                 \
-		hi = NUM;                                \
+		hi = PARENT->NUM;                                \
 		cur = (hi - lo) / 2;                             \
 	}                                                        \
 	while (TRUE) {                                           \
 		CHILD = PARENT->SET + cur;                       \
-		if (ntohl(CHILD->ID) == ID)                             \
+		if (CHILD->ID == ID)                             \
 			break;                                   \
-		if (ntohl(CHILD->ID) < ID) {                            \
+		if (CHILD->ID < ID) {                            \
 			lo = cur + 1;                            \
-			if (hi > cur + (ID - ntohl(CHILD->ID)) + 1)     \
-				hi = cur + (ID - ntohl(CHILD->ID)) + 1; \
+			if (hi > cur + (ID - CHILD->ID) + 1)     \
+				hi = cur + (ID - CHILD->ID) + 1; \
 			dir = 1;                                 \
 		} else {                                         \
 			hi = cur;                                \
@@ -244,33 +240,41 @@ catopen(__const char *name, int type)
 }
 
 static MCSetT *
-MCGetSet(MCCatT *cat, int setId)
+MCGetSet(cat, setId)
+	MCCatT  *cat;
+	int     setId;
 {
 	MCSetT  *set;
-	int32_t    lo, hi, cur, dir;
+	long    lo, hi, cur, dir;
 
 	if (cat == NULL || setId <= 0)
 		return (NULL);
-	LOOKUP(cat, set, setId, cat->numSets, sets);
+	LOOKUP(cat, set, setId, numSets, sets);
 	if (set->invalid && loadSet(cat, set) <= 0)
 		return (NULL);
 	return (set);
 }
 
 static MCMsgT *
-MCGetMsg(MCSetT *set, int msgId)
+MCGetMsg(set, msgId)
+	MCSetT  *set;
+	int     msgId;
 {
 	MCMsgT  *msg;
-	int32_t    lo, hi, cur, dir;
+	long    lo, hi, cur, dir;
 
 	if (set == NULL || set->invalid || msgId <= 0)
 		return (NULL);
-	LOOKUP(set, msg, msgId, ntohl(set->numMsgs), u.msgs);
+	LOOKUP(set, msg, msgId, numMsgs, u.msgs);
 	return (msg);
 }
 
 char *
-catgets(nl_catd catd, int setId, int msgId, __const char *dflt)
+catgets(catd, setId, msgId, dflt)
+	nl_catd         catd;
+	int             setId;
+	int             msgId;
+	__const char    *dflt;
 {
 	MCMsgT          *msg;
 	MCCatT          *cat = (MCCatT *)catd;
@@ -287,7 +291,8 @@ catgets(nl_catd catd, int setId, int msgId, __const char *dflt)
 }
 
 int
-catclose(nl_catd catd)
+catclose(catd)
+	nl_catd catd;
 {
 	MCCatT  *cat = (MCCatT *)catd;
 
@@ -295,8 +300,10 @@ catclose(nl_catd catd)
 		errno = EBADF;
 		return (-1);
 	}
-
-	(void)fclose(cat->fp);
+#if 0
+	if (cat->loadType != MCLoadAll)
+#endif
+		(void)fclose(cat->fp);
 	__nls_free_resources(cat, cat->numSets);
 	free(cat);
 	return (0);
@@ -326,7 +333,9 @@ static char     *_errowner = "Message Catalog System";
 }
 
 static void
-__nls_free_resources(MCCatT *cat, int i)
+__nls_free_resources(cat, i)
+	MCCatT  *cat;
+	int     i;
 {
 	MCSetT  *set;
 	int     j;
@@ -342,62 +351,53 @@ __nls_free_resources(MCCatT *cat, int i)
 }
 
 static nl_catd
-loadCat(__const char *catpath)
+loadCat(catpath)
+	__const char    *catpath;
 {
 	MCHeaderT       header;
 	MCCatT          *cat;
 	MCSetT          *set;
-	int32_t         i;
+	long            i;
 	off_t           nextSet;
 	int             saverr;
-	int		fd;
 
 	if ((cat = (MCCatT *)malloc(sizeof(MCCatT))) == NULL)
 		return (NLERR);
+	cat->loadType = MCLoadBySet;
 
-	if ((fd = open(catpath, O_RDONLY | O_CLOEXEC)) == -1) {
+	if ((cat->fp = fopen(catpath, "r")) == NULL) {
 		saverr = errno;
 		free(cat);
 		errno = saverr;
 		return (NLERR);
 	}
-
-	if ((cat->fp = fdopen(fd, "r")) == NULL) {
-		saverr = errno;
-		close(fd);
-		free(cat);
-		errno = saverr;
-		return (NLERR);
-	}
+	(void)_fcntl(fileno(cat->fp), F_SETFD, FD_CLOEXEC);
 
 	if (fread(&header, sizeof(header), 1, cat->fp) != 1 ||
 	    strncmp(header.magic, MCMagic, MCMagicLen) != 0)
 		CORRUPT();
 
-	if (ntohl(header.majorVer) != MCMajorVer) {
+	if (header.majorVer != MCMajorVer) {
 		(void)fclose(cat->fp);
 		free(cat);
-		if (OSSwapInt32(ntohl(header.majorVer)) == MCMajorVer) {
-		    (void)fprintf(stderr, "%s: %s is the wrong byte ordering.\n", _errowner, catpath);
-		} else {
-		    (void)fprintf(stderr, "%s: %s is version %d, we need %d.\n", _errowner, catpath, (int)ntohl(header.majorVer), MCMajorVer);
-		}
+		(void)fprintf(stderr, "%s: %s is version %ld, we need %ld.\n",
+		    _errowner, catpath, header.majorVer, MCMajorVer);
 		NLRETERR(EFTYPE);
 	}
-	if (ntohl(header.numSets) <= 0) {
+	if (header.numSets <= 0) {
 		(void)fclose(cat->fp);
 		free(cat);
-		(void)fprintf(stderr, "%s: %s has %d sets!\n",
-		    _errowner, catpath, (int)ntohl(header.numSets));
+		(void)fprintf(stderr, "%s: %s has %ld sets!\n",
+		    _errowner, catpath, header.numSets);
 		NLRETERR(EFTYPE);
 	}
 
-	cat->numSets = ntohl(header.numSets);
-	if ((cat->sets = (MCSetT *)malloc(sizeof(MCSetT) * cat->numSets)) ==
+	cat->numSets = header.numSets;
+	if ((cat->sets = (MCSetT *)malloc(sizeof(MCSetT) * header.numSets)) ==
 	    NULL)
 		NOSPACE();
 
-	nextSet = ntohll(header.firstSet);
+	nextSet = header.firstSet;
 	for (i = 0; i < cat->numSets; ++i) {
 		if (fseeko(cat->fp, nextSet, SEEK_SET) == -1) {
 			__nls_free_resources(cat, i);
@@ -414,29 +414,50 @@ loadCat(__const char *catpath)
 		/* if it's invalid, skip over it (and backup 'i') */
 		if (set->invalid) {
 			--i;
-			nextSet = ntohll(set->nextSet);
+			nextSet = set->nextSet;
 			continue;
 		}
-		set->invalid = TRUE;
-		nextSet = ntohll(set->nextSet);
-	}
+#if 0
+		if (cat->loadType == MCLoadAll) {
+			int     res;
 
+			if ((res = loadSet(cat, set)) <= 0) {
+				saverr = errno;
+				__nls_free_resources(cat, i);
+				errno = saverr;
+				if (res < 0)
+					NOSPACE();
+				CORRUPT();
+			}
+		} else
+#endif
+			set->invalid = TRUE;
+		nextSet = set->nextSet;
+	}
+#if 0
+	if (cat->loadType == MCLoadAll) {
+		(void)fclose(cat->fp);
+		cat->fp = NULL;
+	}
+#endif
 	return ((nl_catd) cat);
 }
 
 static int
-loadSet(MCCatT *cat, MCSetT *set)
+loadSet(cat, set)
+	MCCatT  *cat;
+	MCSetT  *set;
 {
 	MCMsgT  *msg;
 	int     i;
 	int     saverr;
 
 	/* Get the data */
-	if (fseeko(cat->fp, ntohll(set->data.off), SEEK_SET) == -1)
+	if (fseeko(cat->fp, set->data.off, SEEK_SET) == -1)
 		return (0);
-	if ((set->data.str = malloc(ntohl(set->dataLen))) == NULL)
+	if ((set->data.str = malloc(set->dataLen)) == NULL)
 		return (-1);
-	if (fread(set->data.str, ntohl(set->dataLen), 1, cat->fp) != 1) {
+	if (fread(set->data.str, set->dataLen, 1, cat->fp) != 1) {
 		saverr = errno;
 		free(set->data.str);
 		errno = saverr;
@@ -444,13 +465,13 @@ loadSet(MCCatT *cat, MCSetT *set)
 	}
 
 	/* Get the messages */
-	if (fseeko(cat->fp, ntohll(set->u.firstMsg), SEEK_SET) == -1) {
+	if (fseeko(cat->fp, set->u.firstMsg, SEEK_SET) == -1) {
 		saverr = errno;
 		free(set->data.str);
 		errno = saverr;
 		return (0);
 	}
-	if ((set->u.msgs = (MCMsgT *)malloc(sizeof(MCMsgT) * ntohl(set->numMsgs))) ==
+	if ((set->u.msgs = (MCMsgT *)malloc(sizeof(MCMsgT) * set->numMsgs)) ==
 	    NULL) {
 		saverr = errno;
 		free(set->data.str);
@@ -458,7 +479,7 @@ loadSet(MCCatT *cat, MCSetT *set)
 		return (-1);
 	}
 
-	for (i = 0; i < ntohl(set->numMsgs); ++i) {
+	for (i = 0; i < set->numMsgs; ++i) {
 		msg = set->u.msgs + i;
 		if (fread(msg, sizeof(*msg), 1, cat->fp) != 1) {
 			saverr = errno;
@@ -471,7 +492,7 @@ loadSet(MCCatT *cat, MCSetT *set)
 			--i;
 			continue;
 		}
-		msg->msg.str = (char *)(set->data.str + ntohll(msg->msg.off));
+		msg->msg.str = (char *)(set->data.str + msg->msg.off);
 	}
 	set->invalid = FALSE;
 	return (1);

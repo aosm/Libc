@@ -13,6 +13,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -31,14 +35,13 @@
 .\"
 .\" From @(#)multibyte.3	8.1 (Berkeley) 6/4/93
 .\" From FreeBSD: src/lib/libc/locale/multibyte.3,v 1.22 2003/11/08 03:23:11 tjr Exp
-.\" $FreeBSD: src/lib/libc/locale/wcstombs.3,v 1.5 2007/01/09 00:28:01 imp Exp $
+.\" $FreeBSD: src/lib/libc/locale/wcstombs.3,v 1.4 2004/07/05 06:36:36 ru Exp $
 .\"
 .Dd April 8, 2004
 .Dt WCSTOMBS 3
 .Os
 .Sh NAME
-.Nm wcstombs ,
-.Nm wcstombs_l
+.Nm wcstombs
 .Nd convert a wide-character string to a character string
 .Sh LIBRARY
 .Lb libc
@@ -46,47 +49,28 @@
 .In stdlib.h
 .Ft size_t
 .Fo wcstombs
-.Fa "char *restrict s"
-.Fa "const wchar_t *restrict pwcs"
-.Fa "size_t n"
-.Fc
-.In stdlib.h
-.In xlocale.h
-.Ft size_t
-.Fo wcstombs_l
-.Fa "char *restrict s"
-.Fa "const wchar_t *restrict pwcs"
-.Fa "size_t n"
-.Fa "locale_t loc"
+.Fa "char * restrict mbstring" "const wchar_t * restrict wcstring"
+.Fa "size_t nbytes"
 .Fc
 .Sh DESCRIPTION
 The
 .Fn wcstombs
 function converts a wide character string
-.Fa pwcs
+.Fa wcstring
 into a multibyte character string,
-.Fa s ,
+.Fa mbstring ,
 beginning in the initial conversion state.
 Up to
-.Fa n
+.Fa nbytes
 bytes are stored in
-.Fa s .
+.Fa mbstring .
 Partial multibyte characters at the end of the string are not stored.
-The multibyte character string is null terminated, if there is room.
-.Pp
-Although the
-.Fn wcstombs
-function uses the current locale, the
-.Fn wcstombs_l
-function may be passed a locale directly. See
-.Xr xlocale 3
-for more information.
+The multibyte character string is null terminated if there is room.
 .Sh RETURN VALUES
 The
 .Fn wcstombs
 function returns the number of bytes converted
-(not including any terminating null), if successful;
-otherwise, it returns
+(not including any terminating null), if successful, otherwise it returns
 .Po Vt size_t Pc Ns \-1 .
 .Sh ERRORS
 The
@@ -102,8 +86,7 @@ The conversion state is invalid.
 .Xr mbstowcs 3 ,
 .Xr multibyte 3 ,
 .Xr wcsrtombs 3 ,
-.Xr wctomb 3 ,
-.Xr xlocale 3
+.Xr wctomb 3
 .Sh STANDARDS
 The
 .Fn wcstombs

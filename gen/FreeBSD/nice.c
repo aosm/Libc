@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,16 +35,14 @@
 static char sccsid[] = "@(#)nice.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gen/nice.c,v 1.4 2007/01/09 00:27:54 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/gen/nice.c,v 1.3 2002/03/22 21:52:05 obrien Exp $");
 
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <errno.h>
 #include <unistd.h>
-#if __DARWIN_UNIX03
-#include <limits.h>
-#endif /* __DARWIN_UNIX03 */
+
 /*
  * Backwards compatible nice.
  */
@@ -48,18 +50,11 @@ int
 nice(incr)
 	int incr;
 {
-	int prio, rv;
+	int prio;
 
 	errno = 0;
 	prio = getpriority(PRIO_PROCESS, 0);
 	if (prio == -1 && errno)
 		return (-1);
-#if __DARWIN_UNIX03
-	if (prio + incr > NZERO-1)
-		incr = NZERO-1-prio;
-#endif /* __DARWIN_UNIX03 */
-	rv = setpriority(PRIO_PROCESS, 0, prio + incr);
-	if (rv == -1 && errno == EACCES)
-		errno = EPERM;
-	return (rv == -1) ? rv : getpriority(PRIO_PROCESS, 0);
+	return (setpriority(PRIO_PROCESS, 0, prio + incr));
 }

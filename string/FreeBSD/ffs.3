@@ -11,6 +11,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -28,9 +32,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ffs.3	8.2 (Berkeley) 4/19/94
-.\" $FreeBSD: src/lib/libc/string/ffs.3,v 1.13 2009/01/13 13:19:42 kib Exp $
+.\" $FreeBSD: src/lib/libc/string/ffs.3,v 1.9 2004/06/30 20:09:09 ru Exp $
 .\"
-.Dd October 26, 2008
+.Dd January 13, 2004
 .Dt FFS 3
 .Os
 .Sh NAME
@@ -44,22 +48,20 @@
 .Sh SYNOPSIS
 .In strings.h
 .Ft int
-.Fn ffs "int i"
+.Fn ffs "int value"
 .Ft int
-.Fn ffsl "long i"
+.Fn ffsl "long value"
 .Ft int
-.Fn fls "int i"
+.Fn fls "int value"
 .Ft int
-.Fn flsl "long i"
+.Fn flsl "long value"
 .Sh DESCRIPTION
 The
 .Fn ffs
 and
 .Fn ffsl
-functions find the first bit set
-(beginning with the least significant bit)
-in
-.Fa i
+functions find the first bit set in
+.Fa value
 and return the index of that bit.
 .Pp
 The
@@ -67,10 +69,11 @@ The
 and
 .Fn flsl
 functions find the last bit set in
-.Fa i
+.Fa value
 and return the index of that bit.
 .Pp
-Bits are numbered starting at 1 (the least significant bit).
+Bits are numbered starting from 1, starting at the right-most
+(least significant) bit.
 A return value of zero from any of these functions means that the
 argument was zero.
 .Sh SEE ALSO
@@ -90,7 +93,7 @@ compliance.
 .Pp
 The
 .Fn ffsl ,
-.Fn fls ,
+.Fn fls
 and
 .Fn flsl
 functions appeared in

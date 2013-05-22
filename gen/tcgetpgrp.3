@@ -41,11 +41,10 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
+.In sys/types.h
 .In unistd.h
 .Ft pid_t
-.Fo tcgetpgrp
-.Fa "int fildes"
-.Fc
+.Fn tcgetpgrp "int fd"
 .Sh DESCRIPTION
 The
 .Fn tcgetpgrp
@@ -63,26 +62,18 @@ is set to indicate the error, as follows:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The
-.Fa fildes
+.Fa fd
 argument is not a valid file descriptor.
 .It Bq Er ENOTTY
 The calling process does not have a controlling terminal or the
 underlying terminal device represented by
-.Fa fildes
+.Fa fd
 is not the controlling terminal.
 .El
-.Sh LEGACY SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <unistd.h>
-.Pp
-The include file
-.In sys/types.h
-is necessary.
 .Sh SEE ALSO
 .Xr setpgid 2 ,
 .Xr setsid 2 ,
-.Xr tcsetpgrp 3 ,
-.Xr compat 5
+.Xr tcsetpgrp 3
 .Sh STANDARDS
 The
 .Fn tcgetpgrp

@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,7 +38,7 @@
 static char sccsid[] = "@(#)fread.c	8.2 (Berkeley) 12/11/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdio/fread.c,v 1.16 2009/07/12 13:09:43 ed Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/fread.c,v 1.12 2002/10/12 16:13:37 mike Exp $");
 
 #include "namespace.h"
 #include <stdio.h>
@@ -43,99 +47,45 @@ __FBSDID("$FreeBSD: src/lib/libc/stdio/fread.c,v 1.16 2009/07/12 13:09:43 ed Exp
 #include "local.h"
 #include "libc_private.h"
 
-/*
- * MT-safe version
- */
-
 size_t
-fread(void * __restrict buf, size_t size, size_t count, FILE * __restrict fp)
-{
-	size_t ret;
-
-	FLOCKFILE(fp);
-	ret = __fread(buf, size, count, fp);
-	FUNLOCKFILE(fp);
-	return (ret);
-}
-
-size_t
-__fread(void * __restrict buf, size_t size, size_t count, FILE * __restrict fp)
+fread(buf, size, count, fp)
+	void * __restrict buf;
+	size_t size, count;
+	FILE * __restrict fp;
 {
 	size_t resid;
 	char *p;
-	int r, ret;
+	int r;
 	size_t total;
 
 	/*
-	 * ANSI and SUSv2 require a return value of 0 if size or count are 0.
+	 * The ANSI standard requires a return value of 0 for a count
+	 * or a size of 0.  Peculiarily, it imposes no such requirements
+	 * on fwrite; it only requires fread to be broken.
 	 */
 	if ((resid = count * size) == 0)
 		return (0);
+	FLOCKFILE(fp);
 	ORIENT(fp, -1);
 	if (fp->_r < 0)
 		fp->_r = 0;
 	total = resid;
 	p = buf;
-	/* first deal with anything left in buffer, plus any ungetc buffers */
 	while (resid > (r = fp->_r)) {
 		(void)memcpy((void *)p, (void *)fp->_p, (size_t)r);
 		fp->_p += r;
 		/* fp->_r = 0 ... done in __srefill */
 		p += r;
 		resid -= r;
-		if ((ret = __srefill0(fp)) > 0)
-			break;
-		else if (ret) {
+		if (__srefill(fp)) {
 			/* no more input: return partial result */
+			FUNLOCKFILE(fp);
 			return ((total - resid) / size);
 		}
 	}
-	/*
-	 * 5980080: don't use optimization if __SMBF not set (meaning setvbuf
-	 * was called, and the buffer belongs to the user).
-	 * 6180417: but for unbuffered (__SMBF is not set), so specifically
-	 * test for it.
-	 */
-	if ((fp->_flags & (__SMBF | __SNBF)) && resid > fp->_bf._size) {
-		struct __sbuf save;
-		size_t n;
-
-		save = fp->_bf;
-		fp->_bf._base = p;
-		fp->_bf._size = resid;
-		while (fp->_bf._size > 0) {
-			if ((ret = __srefill1(fp)) != 0) {
-				/* no more input: return partial result */
-				resid = fp->_bf._size;
-				fp->_bf = save;
-				fp->_p = fp->_bf._base;
-				/* fp->_r = 0;  already set in __srefill1 */
-				return ((total - resid) / size);
-			}
-			fp->_bf._base += fp->_r;
-			fp->_bf._size -= fp->_r;
-		}
-		fp->_bf = save;
-		n = fp->_bf._size * ((resid - 1) / fp->_bf._size);
-		r = resid - n;
-		(void)memcpy((void *)fp->_bf._base, (void *)(p + n), (size_t)r);
-		fp->_p = fp->_bf._base + r;
-		fp->_r = 0;
-	} else {
-		while (resid > (r = fp->_r)) {
-			(void)memcpy((void *)p, (void *)fp->_p, (size_t)r);
-			fp->_p += r;
-			/* fp->_r = 0 ... done in __srefill */
-			p += r;
-			resid -= r;
-			if (__srefill1(fp)) {
-				/* no more input: return partial result */
-				return ((total - resid) / size);
-			}
-		}
-		(void)memcpy((void *)p, (void *)fp->_p, resid);
-		fp->_r -= resid;
-		fp->_p += resid;
-	}
+	(void)memcpy((void *)p, (void *)fp->_p, resid);
+	fp->_r -= resid;
+	fp->_p += resid;
+	FUNLOCKFILE(fp);
 	return (count);
 }

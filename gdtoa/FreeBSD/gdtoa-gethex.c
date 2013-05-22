@@ -29,11 +29,7 @@ THIS SOFTWARE.
 /* Please send bug reports to David M. Gay (dmg at acm dot org,
  * with " at " changed at "@" and " dot " changed to ".").	*/
 
-#include "xlocale_private.h"
-
 #include "gdtoaimp.h"
-
-#include <sys/types.h>
 
 #ifdef USE_LOCALE
 #include "locale.h"
@@ -41,40 +37,25 @@ THIS SOFTWARE.
 
  int
 #ifdef KR_headers
-gethex(sp, fpi, exp, bp, sign, loc)
-	CONST char **sp; FPI *fpi; Long *exp; Bigint **bp; int sign; locale_t loc;
+gethex(sp, fpi, exp, bp, sign)
+	CONST char **sp; FPI *fpi; Long *exp; Bigint **bp; int sign;
 #else
-gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign, locale_t loc)
+gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 #endif
 {
 	Bigint *b;
 	CONST unsigned char *decpt, *s0, *s, *s1;
-	unsigned char *strunc;
-	int big, esign, havedig, irv, j, k, n, n0, nbits, up, zret;
+	int esign, havedig, irv, k, n, nbits, up, zret;
 	ULong L, lostbits, *x;
 	Long e, e1;
 #ifdef USE_LOCALE
-	int i;
-	NORMALIZE_LOCALE(loc);
-#ifdef NO_LOCALE_CACHE
-	const unsigned char *decimalpoint = (unsigned char*)localeconv_l(loc)->decimal_point;
+	unsigned char decimalpoint = *localeconv()->decimal_point;
 #else
-	const unsigned char *decimalpoint;
-	static unsigned char *decimalpoint_cache;
-	if (!(s0 = decimalpoint_cache)) {
-		s0 = (unsigned char*)localeconv_l(loc)->decimal_point;
-		if ((decimalpoint_cache = (char*)MALLOC(strlen(s0) + 1))) {
-			strcpy(decimalpoint_cache, s0);
-			s0 = decimalpoint_cache;
-			}
-		}
-	decimalpoint = s0;
-#endif
+#define decimalpoint '.'
 #endif
 
 	if (!hexdig['0'])
 		hexdig_init_D2A();
-	*bp = 0;
 	havedig = 0;
 	s0 = *(CONST unsigned char **)sp + 2;
 	while(s0[havedig] == '0')
@@ -84,21 +65,11 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign, locale_t lo
 	decpt = 0;
 	zret = 0;
 	e = 0;
-	if (hexdig[*s])
-		havedig++;
-	else {
+	if (!hexdig[*s]) {
 		zret = 1;
-#ifdef USE_LOCALE
-		for(i = 0; decimalpoint[i]; ++i) {
-			if (s[i] != decimalpoint[i])
-				goto pcheck;
-			}
-		decpt = s += i;
-#else
-		if (*s != '.')
+		if (*s != decimalpoint)
 			goto pcheck;
 		decpt = ++s;
-#endif
 		if (!hexdig[*s])
 			goto pcheck;
 		while(*s == '0')
@@ -110,28 +81,19 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign, locale_t lo
 		}
 	while(hexdig[*s])
 		s++;
-#ifdef USE_LOCALE
-	if (*s == *decimalpoint && !decpt) {
-		for(i = 1; decimalpoint[i]; ++i) {
-			if (s[i] != decimalpoint[i])
-				goto pcheck;
-			}
-		decpt = s += i;
-#else
-	if (*s == '.' && !decpt) {
+	if (*s == decimalpoint && !decpt) {
 		decpt = ++s;
-#endif
 		while(hexdig[*s])
 			s++;
-		}/*}*/
+		}
 	if (decpt)
 		e = -(((Long)(s-decpt)) << 2);
  pcheck:
 	s1 = s;
-	big = esign = 0;
 	switch(*s) {
 	  case 'p':
 	  case 'P':
+		esign = 0;
 		switch(*++s) {
 		  case '-':
 			esign = 1;
@@ -144,138 +106,26 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign, locale_t lo
 			break;
 			}
 		e1 = n - 0x10;
-		while((n = hexdig[*++s]) !=0 && n <= 0x19) {
-			if (e1 & 0xf8000000)
-				big = 1;
+		while((n = hexdig[*++s]) !=0 && n <= 0x19)
 			e1 = 10*e1 + n - 0x10;
-			}
 		if (esign)
 			e1 = -e1;
 		e += e1;
 	  }
 	*sp = (char*)s;
-	if (!havedig)
-		*sp = (char*)s0 - 1;
 	if (zret)
-		return STRTOG_Zero;
-	if (big) {
-		if (esign) {
-			switch(fpi->rounding) {
-			  case FPI_Round_up:
-				if (sign)
-					break;
-				goto ret_tiny;
-			  case FPI_Round_down:
-				if (!sign)
-					break;
-				goto ret_tiny;
-			  }
-			goto retz;
- ret_tiny:
-			b = Balloc(0);
-			b->wds = 1;
-			b->x[0] = 1;
-			goto dret;
-			}
-		switch(fpi->rounding) {
-		  case FPI_Round_near:
-			goto ovfl1;
-		  case FPI_Round_up:
-			if (!sign)
-				goto ovfl1;
-			goto ret_big;
-		  case FPI_Round_down:
-			if (sign)
-				goto ovfl1;
-			goto ret_big;
-		  }
- ret_big:
-		nbits = fpi->nbits;
-		n0 = n = nbits >> kshift;
-		if (nbits & kmask)
-			++n;
-		for(j = n, k = 0; j >>= 1; ++k);
-		*bp = b = Balloc(k);
-		b->wds = n;
-		for(j = 0; j < n0; ++j)
-			b->x[j] = ALL_ON;
-		if (n > n0)
-			b->x[j] = ULbits >> (ULbits - (nbits & kmask));
-		*exp = fpi->emin;
-		return STRTOG_Normal | STRTOG_Inexlo;
-		}
-	/*
-	 * Truncate the hex string if it is longer than the precision needed,
-	 * to avoid denial-of-service issues with very large strings.  Use
-	 * additional digits to insure precision.  Scan to-be-truncated digits
-	 * and replace with either '1' or '0' to ensure proper rounding.
-	 */
-	{
-		int maxdigits = ((fpi->nbits + 3) >> 2) + 2;
-		size_t nd = s1 - s0;
-#ifdef USE_LOCALE
-		int dplen = strlen((const char *)decimalpoint);
-#else
-		int dplen = 1;
-#endif
-
-		if (decpt && s0 < decpt)
-			nd -= dplen;
-		if (nd > maxdigits && (strunc = alloca(maxdigits + dplen + 2)) != NULL) {
-			ssize_t nd0 = decpt ? decpt - s0 - dplen : nd;
-			unsigned char *tp = strunc + maxdigits;
-			int found = 0;
-			if ((nd0 -= maxdigits) >= 0 || s0 >= decpt)
-				memcpy(strunc, s0, maxdigits);
-			else {
-				memcpy(strunc, s0, maxdigits + dplen);
-				tp += dplen;
-				}
-			s0 += maxdigits;
-			e += (nd - (maxdigits + 1)) << 2;
-			if (nd0 > 0) {
-				while(nd0-- > 0)
-					if (*s0++ != '0') {
-						found++;
-						break;
-						}
-				s0 += dplen;
-				}
-			if (!found && decpt) {
-				while(s0 < s1)
-					if(*s0++ != '0') {
-						found++;
-						break;
-						}
-				}
-			*tp++ = found ? '1' : '0';
-			*tp = 0;
-			s0 = strunc;
-			s1 = tp;
-			}
-		}
-
+		return havedig ? STRTOG_Zero : STRTOG_NoNumber;
 	n = s1 - s0 - 1;
-	for(k = 0; n > (1 << (kshift-2)) - 1; n >>= 1)
+	for(k = 0; n > 7; n >>= 1)
 		k++;
 	b = Balloc(k);
 	x = b->x;
 	n = 0;
 	L = 0;
-#ifdef USE_LOCALE
-	for(i = 0; decimalpoint[i+1]; ++i);
-#endif
 	while(s1 > s0) {
-#ifdef USE_LOCALE
-		if (*--s1 == decimalpoint[i]) {
-			s1 -= i;
+		if (*--s1 == decimalpoint)
 			continue;
-			}
-#else
-		if (*--s1 == '.')
-			continue;
-#endif
-		if (n == ULbits) {
+		if (n == 32) {
 			*x++ = L;
 			L = 0;
 			n = 0;
@@ -285,7 +135,7 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign, locale_t lo
 		}
 	*x++ = L;
 	b->wds = n = x - b->x;
-	n = ULbits*n - hi0bits(L);
+	n = 32*n - hi0bits(L);
 	nbits = fpi->nbits;
 	lostbits = 0;
 	x = b->x;
@@ -296,7 +146,7 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign, locale_t lo
 			k = n - 1;
 			if (x[k>>kshift] & 1 << (k & kmask)) {
 				lostbits = 2;
-				if (k > 0 && any_on(b,k))
+				if (k > 1 && any_on(b,k-1))
 					lostbits = 3;
 				}
 			}
@@ -312,10 +162,7 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign, locale_t lo
 	if (e > fpi->emax) {
  ovfl:
 		Bfree(b);
- ovfl1:
-#ifndef NO_ERRNO
-		errno = ERANGE;
-#endif
+		*bp = 0;
 		return STRTOG_Infinite | STRTOG_Overflow | STRTOG_Inexhi;
 		}
 	irv = STRTOG_Normal;
@@ -335,22 +182,15 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign, locale_t lo
 			  case FPI_Round_down:
 				if (sign) {
  one_bit:
-					x[0] = b->wds = 1;
- dret:
-					*bp = b;
 					*exp = fpi->emin;
-#ifndef NO_ERRNO
-					errno = ERANGE;
-#endif
+					x[0] = b->wds = 1;
+					*bp = b;
 					return STRTOG_Denormal | STRTOG_Inexhi
 						| STRTOG_Underflow;
 					}
 			  }
 			Bfree(b);
- retz:
-#ifndef NO_ERRNO
-			errno = ERANGE;
-#endif
+			*bp = 0;
 			return STRTOG_Zero | STRTOG_Inexlo | STRTOG_Underflow;
 			}
 		k = n - 1;
@@ -371,7 +211,7 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign, locale_t lo
 			break;
 		  case FPI_Round_near:
 			if (lostbits & 2
-			 && (lostbits | x[0]) & 1)
+			 && (lostbits & 1) | x[0] & 1)
 				up = 1;
 			break;
 		  case FPI_Round_up:
@@ -390,8 +230,8 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign, locale_t lo
 					irv =  STRTOG_Normal;
 				}
 			else if (b->wds > k
-			 || ((n = nbits & kmask) !=0
-			      && hi0bits(x[k-1]) < 32-n)) {
+			 || (n = nbits & kmask) !=0
+			     && hi0bits(x[k-1]) < 32-n) {
 				rshift(b,1);
 				if (++e > fpi->emax)
 					goto ovfl;

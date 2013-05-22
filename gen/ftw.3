@@ -29,15 +29,14 @@
 .Ft int
 .Fo ftw
 .Fa "const char *path"
-.Fa "int (*fn)(const\ char\ *, const\ struct\ stat\ *ptr, int\ flag)"
-.Fa "int depth"
+.Fa "int (*fn)(const char *, const struct stat *, int)"
+.Fa "int maxfds"
 .Fc
 .Ft int
 .Fo nftw
 .Fa "const char *path"
-.Fa "int (*fn)(const\ char\ *, const\ struct\ stat\ *ptr, \
-     int\ flag, struct\ FTW\ *)"
-.Fa "int depth"
+.Fa "int (*fn)(const\ char\ *, const\ struct\ stat\ *, int, struct\ FTW\ *)"
+.Fa "int maxfds"
 .Fa "int flags"
 .Fc
 .Sh DESCRIPTION
@@ -110,7 +109,7 @@ function traverses the tree in pre-order.
 That is, it processes the directory before the directory's contents.
 .Pp
 The
-.Fa depth
+.Fa maxfds
 argument specifies the maximum number of file descriptors
 to keep open while traversing the tree.
 It has no effect in this implementation.
@@ -184,7 +183,7 @@ as follows:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The
-.Fa depth
+.Fa maxfds
 argument is less than 1 or greater than
 .Dv OPEN_MAX .
 .El
@@ -197,18 +196,18 @@ functions are far more tolerant of symlink cycles and are lax in reporting
 errors while accessing the initial path.  When
 .Fn nftw
 is passed
-.Dv FTW_MOUNT ,
-it will pass the mount point to the callback function.
+.Dv FTW_MOUNT
+it will pass the callback the mount point.
 .Sh SEE ALSO
 .Xr chdir 2 ,
 .Xr close 2 ,
 .Xr open 2 ,
 .Xr stat 2 ,
+.Xr compat 5 ,
 .Xr fts 3 ,
 .Xr malloc 3 ,
 .Xr opendir 3 ,
-.Xr readdir 3 ,
-.Xr compat 5
+.Xr readdir 3
 .Sh STANDARDS
 The
 .Fn ftw
@@ -223,5 +222,5 @@ Prior to MacOS X 10.4
 did not follow symlinks.
 .Sh BUGS
 The
-.Fa depth
+.Fa maxfds
 argument is currently ignored.

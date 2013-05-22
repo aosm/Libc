@@ -122,7 +122,6 @@
 #define		_socketpair			socketpair
 #define		_system				system
 #define		_tcdrain			tcdrain
-#define 	_usleep				usleep
 #define		_wait				wait
 #define		_wait4				wait4
 #define		_waitpid			waitpid
@@ -156,12 +155,11 @@
 #define		__swapcontext			swapcontext
 #define		__system			system
 #define		__tcdrain			tcdrain
-#define 	__usleep			usleep
 #define		__vfscanf			vfscanf
 #define		__wait				wait
 #define		__waitpid			waitpid
 
 #define	_GENERIC_DIRSIZ(dp) \
-    (((unsigned long)&((struct dirent *)0)->d_name + (dp)->d_namlen+1 + 3) & ~3)
+    ((sizeof (struct dirent) - (MAXNAMLEN+1)) + (((dp)->d_namlen+1 + 3) &~ 3))
 
 #endif /* __FBSD_COMPAT__H_ */

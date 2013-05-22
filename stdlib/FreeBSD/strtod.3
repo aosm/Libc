@@ -13,6 +13,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -30,7 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)strtod.3	8.1 (Berkeley) 6/4/93
-.\" $FreeBSD: src/lib/libc/stdlib/strtod.3,v 1.22 2007/12/16 21:19:28 das Exp $
+.\" $FreeBSD: src/lib/libc/stdlib/strtod.3,v 1.19 2003/05/22 13:02:28 ru Exp $
 .\"
 .Dd March 2, 2003
 .Dt STRTOD 3
@@ -45,20 +49,11 @@ string to floating point
 .Sh SYNOPSIS
 .In stdlib.h
 .Ft double
-.Fo strtod
-.Fa "const char *restrict nptr"
-.Fa "char **restrict endptr"
-.Fc
+.Fn strtod "const char * restrict nptr" "char ** restrict endptr"
 .Ft float
-.Fo strtof
-.Fa "const char *restrict nptr"
-.Fa "char **restrict endptr"
-.Fc
+.Fn strtof "const char * restrict nptr" "char ** restrict endptr"
 .Ft "long double"
-.Fo strtold
-.Fa "const char *restrict nptr"
-.Fa "char **restrict endptr"
-.Fc
+.Fn strtold "const char * restrict nptr" "char ** restrict endptr"
 .Sh DESCRIPTION
 These conversion
 functions convert the initial portion of the string
@@ -71,17 +66,16 @@ and
 .Vt "long double"
 representation, respectively.
 .Pp
-The expected form of the string
-is an optional plus (``+'') or minus (``\-'') sign,
-followed by either:
+The expected form of the string is an optional plus (``+'') or minus
+sign (``\-'') followed by either:
 .Bl -bullet
 .It
-a decimal significand, consisting of a sequence of decimal digits
-(optionally containing a decimal-point character) or
+a decimal significand consisting of a sequence of decimal digits
+optionally containing a decimal-point character, or
 .It
-a hexadecimal significand, consisting of a ``0X'' or ``0x'' followed
-by a sequence of hexadecimal digits
-(optionally containing a decimal-point character).
+a hexadecimal significand consisting of a ``0X'' or ``0x'' followed
+by a sequence of hexadecimal digits optionally containing a
+decimal-point character.
 .El
 .Pp
 In both cases, the significand may be optionally followed by an
@@ -96,28 +90,8 @@ For hexadecimal constants, the scaling is instead done by powers
 of 2.
 .Pp
 Alternatively, if the portion of the string following the optional
-plus or minus sign begins with
-.Dq INFINITY
-or
-.Dq NAN ,
-ignoring case, it is interpreted as an infinity or a quiet \*(Na,
-respectively.
-The syntax
-.Dq Xo Pf NAN( Ar "s" ) Xc ,
-where
-.Ar s
-is an alphanumeric string, produces the same value as the call
-.Fo nan
-.Qq Ar s Ns
-.Fc
-(respectively,
-.Fo nanf
-.Qq Ar s Ns
-.Fc
-and
-.Fo nanl
-.Qq Ar s Ns
-.Fc . )
+plus or minus sign begins with ``INFINITY'' or ``NAN'', ignoring
+case, it is interpreted as an infinity or a quiet NaN, respectively.
 .Pp
 In any of the above cases, leading white-space characters in the
 string (as defined by the
@@ -126,12 +100,6 @@ function) are skipped.
 The decimal point
 character is defined in the program's locale (category
 .Dv LC_NUMERIC ) .
-.Pp
-Extended locale versions of these functions are documented in
-.Xr strtod_l 3 .
-See
-.Xr xlocale 3
-for more information.
 .Sh RETURN VALUES
 The
 .Fn strtod ,
@@ -176,8 +144,6 @@ Overflow or underflow occurred.
 .Xr atof 3 ,
 .Xr atoi 3 ,
 .Xr atol 3 ,
-.Xr nan 3 ,
-.Xr strtod_l 3 ,
 .Xr strtol 3 ,
 .Xr strtoul 3 ,
 .Xr wcstod 3
@@ -186,7 +152,10 @@ The
 .Fn strtod
 function
 conforms to
-.St -isoC-99 .
+.St -isoC-99 ,
+with the exception of the bug noted below.
+.Sh BUGS
+These routines do not recognize the C99 ``NaN(...)'' syntax.
 .Sh AUTHORS
 The author of this software is
 .An David M. Gay .

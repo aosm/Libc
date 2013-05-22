@@ -89,8 +89,6 @@ static struct {
 	{ "nouimmutable",	UF_IMMUTABLE,	0 },
 	{ "nodump",		UF_NODUMP,	1 },
 	{ "noopaque",		UF_OPAQUE,	0 },
-	{ "nohidden",		UF_HIDDEN,	0 },
-	{ "nocompressed",	UF_COMPRESSED,	0 },
 };
 #define longestflaglen	12
 #define nmappings	(sizeof(mapping) / sizeof(mapping[0]))

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2006 Apple Computer, Inc. All rights reserved.
+ * Copyright (c) 1999 Apple Computer, Inc. All rights reserved.
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -62,17 +62,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdio.h>	/* for P_tmpdir */
-
-#include <dirhelper_priv.h>
-
-extern char *_dirhelper(dirhelper_which_t which, char *path, size_t pathlen);
-
-#if __DARWIN_UNIX03
-#define CONFSTR_ERR_RET	0
-#else /* !__DARWIN_UNIX03 */
-#define CONFSTR_ERR_RET	-1
-#endif /* __DARWIN_UNIX03 */
 
 size_t
 confstr(name, buf, len)
@@ -89,15 +78,15 @@ confstr(name, buf, len)
 		mib[0] = CTL_USER;
 		mib[1] = USER_CS_PATH;
 		if (sysctl(mib, 2, NULL, &tlen, NULL, 0) == -1)
-			return (CONFSTR_ERR_RET);
+			return (-1);
 		if (len != 0 && buf != NULL) {
 			if ((p = malloc(tlen)) == NULL)
-				return (CONFSTR_ERR_RET);
+				return (-1);
 			if (sysctl(mib, 2, p, &tlen, NULL, 0) == -1) {
 				sverrno = errno;
 				free(p);
 				errno = sverrno;
-				return (CONFSTR_ERR_RET);
+				return (-1);
 			}
 			/*
 			 * POSIX 1003.2 requires partial return of
@@ -107,7 +96,7 @@ confstr(name, buf, len)
 			buf[len - 1] = '\0';
 			free(p);
 		}
-		return (tlen);
+		return (tlen + 1);
 
 	case _CS_POSIX_V6_ILP32_OFF32_CFLAGS:
 	case _CS_XBS5_ILP32_OFF32_CFLAGS:		/* legacy */
@@ -120,31 +109,16 @@ confstr(name, buf, len)
 
 	case _CS_XBS5_ILP32_OFF32_LINTFLAGS:		/* legacy */
 
-	case _CS_POSIX_V6_ILP32_OFFBIG_LIBS:
-	case _CS_XBS5_ILP32_OFFBIG_LIBS:		/* legacy */
-
-	case _CS_XBS5_ILP32_OFFBIG_LINTFLAGS:		/* legacy */
-
-	case _CS_POSIX_V6_LP64_OFF64_LIBS:
-	case _CS_XBS5_LP64_OFF64_LIBS:			/* legacy */
-
-	case _CS_XBS5_LP64_OFF64_LINTFLAGS:		/* legacy */
-
-	case _CS_POSIX_V6_LPBIG_OFFBIG_LIBS:
-	case _CS_XBS5_LPBIG_OFFBIG_LIBS:		/* legacy */
-
-	case _CS_XBS5_LPBIG_OFFBIG_LINTFLAGS:		/* legacy */
-		/* No special flags... yet */
-		p = "";
-		goto docopy;
-
 	case _CS_POSIX_V6_ILP32_OFFBIG_CFLAGS:
 	case _CS_XBS5_ILP32_OFFBIG_CFLAGS:		/* legacy */
 
 	case _CS_POSIX_V6_ILP32_OFFBIG_LDFLAGS:
 	case _CS_XBS5_ILP32_OFFBIG_LDFLAGS:		/* legacy */
-		p = "-W 32";
-		goto docopy;
+
+	case _CS_POSIX_V6_ILP32_OFFBIG_LIBS:
+	case _CS_XBS5_ILP32_OFFBIG_LIBS:		/* legacy */
+
+	case _CS_XBS5_ILP32_OFFBIG_LINTFLAGS:		/* legacy */
 
 	case _CS_POSIX_V6_LP64_OFF64_CFLAGS:
 	case _CS_XBS5_LP64_OFF64_CFLAGS:		/* legacy */
@@ -152,12 +126,23 @@ confstr(name, buf, len)
 	case _CS_POSIX_V6_LP64_OFF64_LDFLAGS:
 	case _CS_XBS5_LP64_OFF64_LDFLAGS:		/* legacy */
 
+	case _CS_POSIX_V6_LP64_OFF64_LIBS:
+	case _CS_XBS5_LP64_OFF64_LIBS:			/* legacy */
+
+	case _CS_XBS5_LP64_OFF64_LINTFLAGS:		/* legacy */
+
 	case _CS_POSIX_V6_LPBIG_OFFBIG_CFLAGS:
 	case _CS_XBS5_LPBIG_OFFBIG_CFLAGS:		/* legacy */
 
 	case _CS_POSIX_V6_LPBIG_OFFBIG_LDFLAGS:
 	case _CS_XBS5_LPBIG_OFFBIG_LDFLAGS:		/* legacy */
-		p = "-W 64";
+
+	case _CS_POSIX_V6_LPBIG_OFFBIG_LIBS:
+	case _CS_XBS5_LPBIG_OFFBIG_LIBS:		/* legacy */
+
+	case _CS_XBS5_LPBIG_OFFBIG_LINTFLAGS:		/* legacy */
+		/* No special flags... yet */
+		p = "";
 		goto docopy;
 
 	case _CS_POSIX_V6_WIDTH_RESTRICTED_ENVS:
@@ -170,53 +155,6 @@ docopy:
 		if (len != 0 && buf != NULL)
 			strlcpy(buf, p, len);
 		return (strlen(p) + 1);
-
-	case _CS_DARWIN_USER_DIR:
-		if ((p = alloca(PATH_MAX)) == NULL) {
-			errno = ENOMEM;
-			return (CONFSTR_ERR_RET);
-		}
-		if (_dirhelper(DIRHELPER_USER_LOCAL, p, PATH_MAX) == NULL) {
-			if (errno != ENOMEM)
-				errno = EIO;
-			return (CONFSTR_ERR_RET);
-		}
-		goto docopy;
-
-	case _CS_DARWIN_USER_TEMP_DIR:
-		if ((p = alloca(PATH_MAX)) == NULL) {
-			errno = ENOMEM;
-			return (CONFSTR_ERR_RET);
-		}
-		if (_dirhelper(DIRHELPER_USER_LOCAL_TEMP, p, PATH_MAX) == NULL) {
-			int dh_errno = errno;
-			/*
-			 * If _dirhelper() fails, try TMPDIR and P_tmpdir,
-			 * finally failing otherwise.
-			 */
-			if ((p = getenv("TMPDIR")) && access(p, W_OK) == 0)
-				goto docopy;
-			if (access(p = P_tmpdir, W_OK) == 0)
-				goto docopy;
-			if (dh_errno == ENOMEM)
-				errno = ENOMEM;
-			else
-				errno = EIO;
-			return (CONFSTR_ERR_RET);
-		}
-		goto docopy;
-
-	case _CS_DARWIN_USER_CACHE_DIR:
-		if ((p = alloca(PATH_MAX)) == NULL) {
-			errno = ENOMEM;
-			return (CONFSTR_ERR_RET);
-		}
-		if (_dirhelper(DIRHELPER_USER_LOCAL_CACHE, p, PATH_MAX) == NULL) {
-			if (errno != ENOMEM)
-				errno = EIO;
-			return (CONFSTR_ERR_RET);
-		}
-		goto docopy;
 
 	default:
 		errno = EINVAL;

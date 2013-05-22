@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,7 +35,7 @@
 static char sccsid[] = "@(#)sysctl.c	8.2 (Berkeley) 1/4/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gen/sysctl.c,v 1.6 2007/01/09 00:27:55 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/gen/sysctl.c,v 1.5 2003/02/16 17:29:09 nectar Exp $");
 
 #include <sys/param.h>
 #include <sys/sysctl.h>
@@ -53,34 +57,8 @@ sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 	void *oldp, *newp;
 	size_t *oldlenp, newlen;
 {
-	if (name[0] != CTL_USER) {
-		if (namelen == 2 && name[0] == CTL_KERN && name[1] == KERN_EXEC) {
-			/*
-			 * 7723306: intercept kern.exec and fake a return of
-			 * a dummy string ("/" in this case)
-			 */
-			if (newp != NULL) {
-				errno = EPERM;
-				return -1;
-			}
-			if (oldp == NULL) {
-				if (oldlenp != NULL) *oldlenp = 2;
-				return 0;
-			}
-			if (oldlenp == NULL) {
-				errno = EFAULT;
-				return -1;
-			}
-			if (*oldlenp < 2) {
-				errno = ENOMEM;
-				return -1;
-			}
-			memmove(oldp, "/", 2);
-			*oldlenp = 2;
-			return 0;
-		}
+	if (name[0] != CTL_USER)
 		return (__sysctl(name, namelen, oldp, oldlenp, newp, newlen));
-	}
 
 	if (newp != NULL) {
 		errno = EPERM;

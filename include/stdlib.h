@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2002 - 2008 Apple Inc. All rights reserved.
+ * Copyright (c) 2000, 2005 Apple Computer, Inc. All rights reserved.
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -58,14 +58,13 @@
 #ifndef _STDLIB_H_
 #define _STDLIB_H_
 
-#include <Availability.h>
-
+#include <sys/cdefs.h>
 #include <_types.h>
 #if !defined(_ANSI_SOURCE)
 #include <sys/wait.h>
-#if (!defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE))
+#if !defined(_POSIX_C_SOURCE)
 #include <alloca.h>
-#endif /* (!_POSIX_C_SOURCE || _DARWIN_C_SOURCE) */
+#endif /* !_POSIX_C_SOURCE */
 #endif /* !_ANSI_SOURCE */
 
 #ifndef	_SIZE_T
@@ -75,7 +74,7 @@
 typedef	__darwin_size_t		size_t;
 #endif
 
-#if !defined(_ANSI_SOURCE) && (!defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE))
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_C_SOURCE)
 #ifndef _CT_RUNE_T
 #define _CT_RUNE_T
 typedef	__darwin_ct_rune_t	ct_rune_t;
@@ -85,7 +84,7 @@ typedef	__darwin_ct_rune_t	ct_rune_t;
 #define _RUNE_T
 typedef __darwin_rune_t   	rune_t;
 #endif
-#endif	/* !_ANSI_SOURCE && (!_POSIX_C_SOURCE || _DARWIN_C_SOURCE) */
+#endif
 
 #ifndef	__cplusplus
 #ifndef	_WCHAR_T
@@ -136,21 +135,13 @@ extern int __mb_cur_max;
 #endif /* _USE_EXTENDED_LOCALES_ */
 #endif /* MB_CUR_MAX */
 
-#if !defined(_ANSI_SOURCE) && (!defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE)) \
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_C_SOURCE) \
     && defined(_USE_EXTENDED_LOCALES_) && !defined(MB_CUR_MAX_L)
 #define	MB_CUR_MAX_L(x)	(___mb_cur_max_l(x))
 #endif
-//Begin-Libc
-/* f must be a literal string */
-#define LIBC_ABORT(f,...)	abort_report_np("%s:%s:%u: " f, __FILE__, __func__, __LINE__, ## __VA_ARGS__)
-//End-Libc
 
 __BEGIN_DECLS
 void	 abort(void) __dead2;
-//Begin-Libc
-__private_extern__
-void	 abort_report_np(const char *, ...) __dead2 __printflike(1, 2);
-//End-Libc
 int	 abs(int) __pure2;
 int	 atexit(void (*)(void));
 double	 atof(const char *);
@@ -178,17 +169,16 @@ void	*malloc(size_t);
 int	 mblen(const char *, size_t);
 size_t	 mbstowcs(wchar_t * __restrict , const char * __restrict, size_t);
 int	 mbtowc(wchar_t * __restrict, const char * __restrict, size_t);
-int 	 posix_memalign(void **, size_t, size_t) __OSX_AVAILABLE_STARTING(__MAC_10_6, __IPHONE_3_0);
 void	 qsort(void *, size_t, size_t,
 	    int (*)(const void *, const void *));
 int	 rand(void);
 void	*realloc(void *, size_t);
 void	 srand(unsigned);
-double	 strtod(const char *, char **) __DARWIN_ALIAS(strtod);
-float	 strtof(const char *, char **) __DARWIN_ALIAS(strtof);
+double	 strtod(const char *, char **);
+float	 strtof(const char *, char **);
 long	 strtol(const char *, char **, int);
 long double
-	 strtold(const char *, char **);
+	 strtold(const char *, char **) __DARWIN_LDBL_COMPAT(strtold);
 #if !__DARWIN_NO_LONG_LONG
 long long 
 	 strtoll(const char *, char **, int);
@@ -199,15 +189,7 @@ unsigned long
 unsigned long long
 	 strtoull(const char *, char **, int);
 #endif /* !__DARWIN_NO_LONG_LONG */
-//Begin-Libc
-#ifndef LIBC_ALIAS_SYSTEM
-//End-Libc
-int	 system(const char *) __DARWIN_ALIAS_C(system);
-//Begin-Libc
-#else /* LIBC_ALIAS_SYSTEM */
-int	 system(const char *) LIBC_ALIAS_C(system);
-#endif /* !LIBC_ALIAS_SYSTEM */
-//End-Libc
+int	 system(const char *);
 size_t	 wcstombs(char * __restrict, const wchar_t * __restrict, size_t);
 int	 wctomb(char *, wchar_t);
 
@@ -236,59 +218,14 @@ long	 mrand48(void);
 long	 nrand48(unsigned short[3]);
 int	 posix_openpt(int);
 char	*ptsname(int);
-//Begin-Libc
-#ifndef LIBC_ALIAS_PUTENV
-//End-Libc
 int	 putenv(char *) __DARWIN_ALIAS(putenv);
-//Begin-Libc
-#else /* LIBC_ALIAS_PUTENV */
-int	 putenv(char *) LIBC_ALIAS(putenv);
-#endif /* !LIBC_ALIAS_PUTENV */
-//End-Libc
 long	 random(void);
-int	 rand_r(unsigned *);
-//Begin-Libc
-#ifdef __LIBC__
-#ifndef LIBC_ALIAS_REALPATH
-char	*realpath(const char * __restrict, char * __restrict) __DARWIN_EXTSN(realpath);
-#else /* LIBC_ALIAS_REALPATH */
-#ifdef VARIANT_DARWINEXTSN
-char	*realpath(const char * __restrict, char * __restrict) LIBC_EXTSN(realpath);
-#else /* !VARIANT_DARWINEXTSN */
-char	*realpath(const char * __restrict, char * __restrict) LIBC_ALIAS(realpath);
-#endif /* VARIANT_DARWINEXTSN */
-#endif /* !LIBC_ALIAS_REALPATH */
-#else /* !__LIBC__ */
-//End-Libc
-#if (__DARWIN_UNIX03 && !defined(_POSIX_C_SOURCE)) || defined(_DARWIN_C_SOURCE) || defined(_DARWIN_BETTER_REALPATH)
-char	*realpath(const char * __restrict, char * __restrict) __DARWIN_EXTSN(realpath);
-#else /* (!__DARWIN_UNIX03 || _POSIX_C_SOURCE) && !_DARWIN_C_SOURCE && !_DARWIN_BETTER_REALPATH */
-char	*realpath(const char * __restrict, char * __restrict) __DARWIN_ALIAS(realpath);
-#endif /* (__DARWIN_UNIX03 && _POSIX_C_SOURCE) || _DARWIN_C_SOURCE || _DARWIN_BETTER_REALPATH */
-//Begin-Libc
-#endif /* __LIBC__ */
-//End-Libc
+char	*realpath(const char *, char *resolved_path);
 unsigned short
 	*seed48(unsigned short[3]);
-//Begin-Libc
-#ifndef LIBC_ALIAS_SETENV
-//End-Libc
 int	 setenv(const char *, const char *, int) __DARWIN_ALIAS(setenv);
-//Begin-Libc
-#else /* LIBC_ALIAS_SETENV */
-int	 setenv(const char *, const char *, int) LIBC_ALIAS(setenv);
-#endif /* !LIBC_ALIAS_SETENV */
-//End-Libc
 #if __DARWIN_UNIX03
-//Begin-Libc
-#ifndef LIBC_ALIAS_SETKEY
-//End-Libc
 void	 setkey(const char *) __DARWIN_ALIAS(setkey);
-//Begin-Libc
-#else /* LIBC_ALIAS_SETKEY */
-void	 setkey(const char *) LIBC_ALIAS(setkey);
-#endif /* !LIBC_ALIAS_SETKEY */
-//End-Libc
 #else /* !__DARWIN_UNIX03 */
 int	 setkey(const char *);
 #endif /* __DARWIN_UNIX03 */
@@ -301,21 +238,13 @@ void	 srandom(unsigned long);
 #endif /* __DARWIN_UNIX03 */
 int	 unlockpt(int);
 #if __DARWIN_UNIX03
-//Begin-Libc
-#ifndef LIBC_ALIAS_UNSETENV
-//End-Libc
 int	 unsetenv(const char *) __DARWIN_ALIAS(unsetenv);
-//Begin-Libc
-#else /* LIBC_ALIAS_UNSETENV */
-int	 unsetenv(const char *) LIBC_ALIAS(unsetenv);
-#endif /* !LIBC_ALIAS_UNSETENV */
-//End-Libc
 #else /* !__DARWIN_UNIX03 */
 void	 unsetenv(const char *);
 #endif /* __DARWIN_UNIX03 */
-#endif	/* !_ANSI_SOURCE */
+#endif
 
-#if !defined(_ANSI_SOURCE) && (!defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE))
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_C_SOURCE)
 #include <machine/types.h>
 
 #ifndef _DEV_T
@@ -330,16 +259,8 @@ typedef	__darwin_mode_t	mode_t;
 
 u_int32_t
 	 arc4random(void);
-void	 arc4random_addrandom(unsigned char * /*dat*/, int /*datlen*/);
-void	 arc4random_buf(void * /*buf*/, size_t /*nbytes*/) __OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_4_3);
+void	 arc4random_addrandom(unsigned char *dat, int datlen);
 void	 arc4random_stir(void);
-u_int32_t
-	 arc4random_uniform(u_int32_t /*upper_bound*/) __OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_4_3);
-#ifdef __BLOCKS__
-int	 atexit_b(void (^)(void)) __OSX_AVAILABLE_STARTING(__MAC_10_6, __IPHONE_3_2);
-void	*bsearch_b(const void *, const void *, size_t,
-	    size_t, int (^)(const void *, const void *)) __OSX_AVAILABLE_STARTING(__MAC_10_6, __IPHONE_3_2);
-#endif /* __BLOCKS__ */
 
 	 /* getcap(3) functions */
 char	*cgetcap(char *, const char *, int);
@@ -353,7 +274,7 @@ int	 cgetset(const char *);
 int	 cgetstr(char *, const char *, char **);
 int	 cgetustr(char *, const char *, char **);
 
-int	 daemon(int, int) __DARWIN_1050(daemon) __OSX_AVAILABLE_BUT_DEPRECATED(__MAC_10_0, __MAC_10_5, __IPHONE_2_0, __IPHONE_2_0);
+int	 daemon(int, int);
 char	*devname(dev_t, mode_t);
 char	*devname_r(dev_t, mode_t, char *buf, int len);
 char	*getbsize(int *, long *);
@@ -363,28 +284,8 @@ const char
 
 int	 heapsort(void *, size_t, size_t,
 	    int (*)(const void *, const void *));
-#ifdef __BLOCKS__
-int	 heapsort_b(void *, size_t, size_t,
-	    int (^)(const void *, const void *)) __OSX_AVAILABLE_STARTING(__MAC_10_6, __IPHONE_3_2);
-#endif /* __BLOCKS__ */
 int	 mergesort(void *, size_t, size_t,
 	    int (*)(const void *, const void *));
-#ifdef __BLOCKS__
-int	 mergesort_b(void *, size_t, size_t,
-	    int (^)(const void *, const void *)) __OSX_AVAILABLE_STARTING(__MAC_10_6, __IPHONE_3_2);
-#endif /* __BLOCKS__ */
-void	 psort(void *, size_t, size_t,
-	    int (*)(const void *, const void *)) __OSX_AVAILABLE_STARTING(__MAC_10_6, __IPHONE_3_2);
-#ifdef __BLOCKS__
-void	 psort_b(void *, size_t, size_t,
-	    int (^)(const void *, const void *)) __OSX_AVAILABLE_STARTING(__MAC_10_6, __IPHONE_3_2);
-#endif /* __BLOCKS__ */
-void	 psort_r(void *, size_t, size_t, void *,
-	    int (*)(void *, const void *, const void *))  __OSX_AVAILABLE_STARTING(__MAC_10_6, __IPHONE_3_2);
-#ifdef __BLOCKS__
-void	 qsort_b(void *, size_t, size_t,
-	    int (^)(const void *, const void *)) __OSX_AVAILABLE_STARTING(__MAC_10_6, __IPHONE_3_2);
-#endif /* __BLOCKS__ */
 void	 qsort_r(void *, size_t, size_t, void *,
 	    int (*)(void *, const void *, const void *));
 int	 radixsort(const unsigned char **, int, const unsigned char *,
@@ -394,6 +295,7 @@ int	 sradixsort(const unsigned char **, int, const unsigned char *,
 	    unsigned);
 void	 sranddev(void);
 void	 srandomdev(void);
+int	 rand_r(unsigned *);
 void	*reallocf(void *, size_t);
 #if !__DARWIN_NO_LONG_LONG
 long long
@@ -403,11 +305,6 @@ unsigned long long
 #endif /* !__DARWIN_NO_LONG_LONG */
 extern char *suboptarg;		/* getsubopt(3) external variable */
 void	*valloc(size_t);
-#endif	/* !_ANSI_SOURCE && !_POSIX_SOURCE */
-
-/* Poison the following routines if -fshort-wchar is set */
-#if !defined(__cplusplus) && defined(__WCHAR_MAX__) && __WCHAR_MAX__ <= 0xffffU
-#pragma GCC poison mbstowcs mbtowc wcstombs wctomb
 #endif
 __END_DECLS
 

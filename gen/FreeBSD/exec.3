@@ -9,6 +9,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -26,15 +30,16 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)exec.3	8.3 (Berkeley) 1/24/94
-.\" $FreeBSD: src/lib/libc/gen/exec.3,v 1.28 2008/06/23 05:22:06 ed Exp $
+.\" $FreeBSD: src/lib/libc/gen/exec.3,v 1.23 2003/09/10 19:24:32 ru Exp $
 .\"
 .Dd January 24, 1994
 .Dt EXEC 3
 .Os
 .Sh NAME
 .Nm execl ,
-.Nm execle ,
 .Nm execlp ,
+.Nm execle ,
+.Nm exect ,
 .Nm execv ,
 .Nm execvp ,
 .Nm execvP
@@ -45,43 +50,25 @@
 .In unistd.h
 .Vt extern char **environ ;
 .Ft int
-.Fo execl
-.Fa "const char *path"
-.Fa "const char *arg0"
-.Fa ... /* "(char *)0" */
-.Fc
+.Fn execl "const char *path" "const char *arg" ... /* "(char *)0" */
+.Ft int
+.Fn execlp "const char *file" "const char *arg" ... /* "(char *)0" */
 .Ft int
 .Fo execle
-.Fa "const char *path"
-.Fa "const char *arg0"
-.Fa ...
+.Fa "const char *path" "const char *arg" ...
 .Fa /*
 .Bk -words
 .Fa "(char *)0" "char *const envp[]" */
 .Ek
 .Fc
 .Ft int
-.Fo execlp
-.Fa "const char *file"
-.Fa "const char *arg0"
-.Fa ... /* "(char *)0" */
-.Fc
+.Fn exect "const char *path" "char *const argv[]" "char *const envp[]"
 .Ft int
-.Fo execv
-.Fa "const char *path"
-.Fa "char *const argv[]"
-.Fc
+.Fn execv "const char *path" "char *const argv[]"
 .Ft int
-.Fo execvp
-.Fa "const char *file"
-.Fa "char *const argv[]"
-.Fc
+.Fn execvp "const char *file" "char *const argv[]"
 .Ft int
-.Fo execvP
-.Fa "const char *file"
-.Fa "const char *search_path"
-.Fa "char *const argv[]"
-.Fc
+.Fn execvP "const char *file" "const char *search_path" "char *const argv[]"
 .Sh DESCRIPTION
 The
 .Nm exec
@@ -97,7 +84,7 @@ The initial argument for these functions is the pathname of a file which
 is to be executed.
 .Pp
 The
-.Fa "const char *arg0"
+.Fa "const char *arg"
 and subsequent ellipses in the
 .Fn execl ,
 .Fn execlp ,
@@ -119,6 +106,7 @@ be terminated by a
 pointer.
 .Pp
 The
+.Fn exect ,
 .Fn execv ,
 .Fn execvp ,
 and
@@ -135,8 +123,10 @@ pointer.
 .Pp
 The
 .Fn execle
-function also specifies the environment of the executed process
-by following the
+and
+.Fn exect
+functions also specify the environment of the executed process by following
+the
 .Dv NULL
 pointer that terminates the list of arguments in the argument list
 or the pointer to the argv array with an additional argument.
@@ -169,7 +159,7 @@ and
 search path is the path specified in the environment by
 .Dq Ev PATH
 variable.
-If this variable is not specified,
+If this variable isn't specified,
 the default path is set according to the
 .Dv _PATH_DEFPATH
 definition in
@@ -206,13 +196,18 @@ or
 according to whether at least one file with suitable execute permissions
 was found.
 .Pp
-If the header of a file is not recognized (the attempted
+If the header of a file isn't recognized (the attempted
 .Fn execve
 returned
 .Er ENOEXEC ) ,
 these functions will execute the shell with the path of
 the file as its first argument.
 (If this attempt fails, no further searching is done.)
+.Pp
+The function
+.Fn exect
+executes a file with the program tracing facilities enabled (see
+.Xr ptrace 2 ) .
 .Sh RETURN VALUES
 If any of the
 .Fn exec
@@ -225,6 +220,38 @@ will be set to indicate the error.
 .It Pa /bin/sh
 The shell.
 .El
+.Sh ERRORS
+The
+.Fn execl ,
+.Fn execle ,
+.Fn execlp ,
+.Fn execvp
+and
+.Fn execvP
+functions
+may fail and set
+.Va errno
+for any of the errors specified for the library functions
+.Xr execve 2
+and
+.Xr malloc 3 .
+.Pp
+The
+.Fn exect
+and
+.Fn execv
+functions
+may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr execve 2 .
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr execve 2 ,
+.Xr fork 2 ,
+.Xr ktrace 2 ,
+.Xr ptrace 2 ,
+.Xr environ 7
 .Sh COMPATIBILITY
 Historically, the default path for the
 .Fn execlp
@@ -281,40 +308,12 @@ and the unusual error
 .Er EIO .
 The behaviour was changed to match the behaviour of
 .Xr sh 1 .
-.Sh ERRORS
-The
-.Fn execl ,
-.Fn execle ,
-.Fn execlp ,
-.Fn execvp ,
-and
-.Fn execvP
-functions
-may fail and set
-.Va errno
-for any of the errors specified for the library functions
-.Xr execve 2
-and
-.Xr malloc 3 .
-.Pp
-The
-.Fn execv
-function may fail and set
-.Va errno
-for any of the errors specified for the library function
-.Xr execve 2 .
-.Sh SEE ALSO
-.Xr sh 1 ,
-.Xr execve 2 ,
-.Xr fork 2 ,
-.Xr ptrace 2 ,
-.Xr environ 7
 .Sh STANDARDS
 The
 .Fn execl ,
 .Fn execv ,
 .Fn execle ,
-.Fn execlp ,
+.Fn execlp
 and
 .Fn execvp
 functions

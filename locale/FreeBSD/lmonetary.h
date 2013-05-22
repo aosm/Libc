@@ -29,8 +29,6 @@
 #ifndef _LMONETARY_H_
 #define	_LMONETARY_H_
 
-#include <xlocale.h>
-
 struct lc_monetary_T {
 	const char	*int_curr_symbol;
 	const char	*currency_symbol;
@@ -55,7 +53,7 @@ struct lc_monetary_T {
 	const char	*int_n_sign_posn;
 };
 
-struct lc_monetary_T *__get_current_monetary_locale(locale_t);
-int	__monetary_load_locale(const char *, locale_t);
+struct lc_monetary_T *__get_current_monetary_locale(void);
+int	__monetary_load_locale(const char *);
 
 #endif /* !_LMONETARY_H_ */
