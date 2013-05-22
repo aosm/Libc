@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,7 +38,7 @@
 static char sccsid[] = "@(#)radixsort.c	8.2 (Berkeley) 4/28/95";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdlib/radixsort.c,v 1.8 2007/01/09 00:28:10 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/radixsort.c,v 1.7 2003/11/11 04:59:23 kientzle Exp $");
 
 /*
  * Radixsort routines.
@@ -53,7 +57,6 @@ __FBSDID("$FreeBSD: src/lib/libc/stdlib/radixsort.c,v 1.8 2007/01/09 00:28:10 im
 #include <stdlib.h>
 #include <stddef.h>
 #include <errno.h>
-#include <pthread.h>
 
 typedef struct {
 	const u_char **sa;
@@ -61,16 +64,10 @@ typedef struct {
 } stack;
 
 static inline void simplesort
-(const u_char **, int, int, const u_char *, u_int) __attribute__((always_inline));
+(const u_char **, int, int, const u_char *, u_int);
 static void r_sort_a(const u_char **, int, int, const u_char *, u_int);
 static void r_sort_b(const u_char **, const u_char **, int, int,
     const u_char *, u_int);
-
-static int *r_sort_a_count;
-static int *r_sort_b_count;
-
-static void r_sort_count_allocate(void);
-static pthread_once_t r_sort_count_control = PTHREAD_ONCE_INIT;
 
 #define	THRESHOLD	20		/* Divert to simplesort(). */
 #define	SIZE		512		/* Default stack size. */
@@ -131,12 +128,6 @@ sradixsort(a, n, tab, endch)
 	return (0);
 }
 
-static void r_sort_count_allocate(void)
-{
-	r_sort_a_count = calloc(256, sizeof(int));
-	r_sort_b_count = calloc(256, sizeof(int));
-}
-
 #define empty(s)	(s >= sp)
 #define pop(a, n, i)	a = (--sp)->sa, n = sp->sn, i = sp->si
 #define push(a, n, i)	sp->sa = a, sp->sn = n, (sp++)->si = i
@@ -150,18 +141,12 @@ r_sort_a(a, n, i, tr, endch)
 	const u_char *tr;
 	u_int endch;
 {
-	static int *count, nc, bmin;
+	static int count[256], nc, bmin;
 	int c;
 	const u_char **ak, *r;
 	stack s[SIZE], *sp, *sp0, *sp1, temp;
 	int *cp, bigc;
 	const u_char **an, *t, **aj, **top[256];
-
-	if (pthread_once(&r_sort_count_control, r_sort_count_allocate)) {
-		return;
-	}
-
-	count = r_sort_a_count;
 
 	/* Set up stack. */
 	sp = s;
@@ -258,18 +243,12 @@ r_sort_b(a, ta, n, i, tr, endch)
 	const u_char *tr;
 	u_int endch;
 {
-	static int *count, nc, bmin;
+	static int count[256], nc, bmin;
 	int c;
 	const u_char **ak, **ai;
 	stack s[512], *sp, *sp0, *sp1, temp;
 	const u_char **top[256];
 	int *cp, bigc;
-
-	if (pthread_once(&r_sort_count_control, r_sort_count_allocate)) {
-		return;
-	}
-
-	count = r_sort_b_count;
 
 	sp = s;
 	push(a, n, i);

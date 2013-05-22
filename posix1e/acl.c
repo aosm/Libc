@@ -25,7 +25,6 @@
 #include <sys/types.h>
 #include <sys/acl.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -53,8 +52,7 @@ acl_free(void *obj)
 	 * Without tracking the addresses of text buffers and qualifiers,
 	 * we can't validate the obj argument here at all.
 	 */
-	if(obj != _FILESEC_REMOVE_ACL)
-		free(obj);
+	free(obj);
 	return(0);
 }
 

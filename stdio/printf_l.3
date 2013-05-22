@@ -36,22 +36,12 @@
 .\"     @(#)printf.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD: src/lib/libc/stdio/printf.3,v 1.58 2004/10/16 16:00:01 stefanf Exp $
 .\"
-.Dd December 15, 2009
+.Dd March 11, 2005
 .Dt PRINTF_L 3
 .Os
 .Sh NAME
-.Nm asprintf_l ,
-.Nm dprintf_l ,
-.Nm fprintf_l ,
-.Nm printf_l ,
-.Nm snprintf_l ,
-.Nm sprintf_l ,
-.Nm vasprintf_l ,
-.Nm vdprintf_l ,
-.Nm vfprintf_l ,
-.Nm vprintf_l ,
-.Nm vsnprintf_l ,
-.Nm vsprintf_l
+.Nm printf_l , fprintf_l , sprintf_l , snprintf_l , asprintf_l ,
+.Nm vprintf_l , vfprintf_l , vsprintf_l , vsnprintf_l , vasprintf_l
 .Nd formatted output conversion
 .Sh LIBRARY
 .Lb libc
@@ -59,101 +49,34 @@
 .In stdio.h
 .In xlocale.h
 .Ft int
-.Fo asprintf_l
-.Fa "char **ret"
-.Fa "locale_t loc"
-.Fa "const char *format"
-.Fa ...
-.Fc
+.Fn printf_l "locale_t loc" "const char * restrict format" ...
 .Ft int
-.Fo dprintf_l
-.Fa "int fd"
-.Fa "locale_t loc"
-.Fa "const char * restrict format"
-.Fa ...
-.Fc
+.Fn fprintf_l "FILE * restrict stream" "locale_t loc" "const char * restrict format" ...
 .Ft int
-.Fo fprintf_l
-.Fa "FILE * restrict stream"
-.Fa "locale_t loc"
-.Fa "const char * restrict format"
-.Fa ...
-.Fc
+.Fn sprintf_l "char * restrict str" "locale_t loc" "const char * restrict format" ...
 .Ft int
-.Fo printf_l
-.Fa "locale_t loc"
-.Fa "const char * restrict format"
-.Fa ...
-.Fc
+.Fn snprintf_l "char * restrict str" "size_t size" "locale_t loc" "const char * restrict format" ...
 .Ft int
-.Fo snprintf_l
-.Fa "char * restrict str"
-.Fa "size_t size"
-.Fa "locale_t loc"
-.Fa "const char * restrict format"
-.Fa ...
-.Fc
-.Ft int
-.Fo sprintf_l
-.Fa "char * restrict str"
-.Fa "locale_t loc"
-.Fa "const char * restrict format"
-.Fa ...
-.Fc
+.Fn asprintf_l "char **ret" "locale_t loc" "const char *format" ...
 .In stdarg.h
-.In xlocale.h
 .Ft int
-.Fo vasprintf_l
-.Fa "char **ret"
-.Fa "locale_t loc"
-.Fa "const char *format"
-.Fa "va_list ap"
-.Fc
+.Fn vprintf_l "locale_t loc" "const char * restrict format" "va_list ap"
 .Ft int
-.Fo vdprintf_l
-.Fa "int fd"
-.Fa "locale_t loc"
-.Fa "const char * restrict format"
-.Fa "va_list ap"
-.Fc
+.Fn vfprintf_l "FILE * restrict stream" "locale_t loc" "const char * restrict format" "va_list ap"
 .Ft int
-.Fo vfprintf_l
-.Fa "FILE * restrict stream"
-.Fa "locale_t loc"
-.Fa "const char * restrict format"
-.Fa "va_list ap"
-.Fc
+.Fn vsprintf_l "char * restrict str" "locale_t loc" "const char * restrict format" "va_list ap"
 .Ft int
-.Fo vprintf_l
-.Fa "locale_t loc"
-.Fa "const char * restrict format"
-.Fa "va_list ap"
-.Fc
+.Fn vsnprintf_l "char * restrict str" "size_t size" "locale_t loc" "const char * restrict format" "va_list ap"
 .Ft int
-.Fo vsnprintf_l
-.Fa "char * restrict str"
-.Fa "size_t size"
-.Fa "locale_t loc"
-.Fa "const char * restrict format"
-.Fa "va_list ap"
-.Fc
-.Ft int
-.Fo vsprintf_l
-.Fa "char * restrict str"
-.Fa "locale_t loc"
-.Fa "const char * restrict format"
-.Fa "va_list ap"
-.Fc
+.Fn vasprintf_l "char **ret" "locale_t loc" "const char *format" "va_list ap"
 .Sh DESCRIPTION
 The
 .Fn printf_l ,
-.Fn dprintf_l ,
 .Fn fprintf_l ,
 .Fn sprintf_l ,
 .Fn snprintf_l ,
 .Fn asprintf_l ,
 .Fn vprintf_l ,
-.Fn vdprintf_l ,
 .Fn vfprintf_l ,
 .Fn vsprintf_l ,
 .Fn vsnprintf_l ,
@@ -161,13 +84,11 @@ and
 .Fn vasprintf_l
 functions are extended locale versions of the
 .Fn printf ,
-.Fn dprintf ,
 .Fn fprintf ,
 .Fn sprintf ,
 .Fn snprintf ,
 .Fn asprintf ,
 .Fn vprintf ,
-.Fn vdprintf ,
 .Fn vfprintf ,
 .Fn vsprintf ,
 .Fn vsnprintf ,

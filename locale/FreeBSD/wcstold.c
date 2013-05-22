@@ -27,67 +27,44 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD: src/lib/libc/locale/wcstold.c,v 1.4 2004/04/07 09:47:56 tjr Exp $");
 
-#include "xlocale_private.h"
-
 #include <stdlib.h>
 #include <wchar.h>
 #include <wctype.h>
-#include <_simple.h>
 
 /*
  * See wcstod() for comments as to the logic used.
  */
-
-extern size_t __wcs_end_offset(const char * __restrict buf, const char * __restrict end, locale_t loc);
-
 long double
-wcstold_l(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr,
-    locale_t loc)
+wcstold(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr)
 {
 	static const mbstate_t initial;
 	mbstate_t mbs;
 	long double val;
 	char *buf, *end;
+	const wchar_t *wcp;
 	size_t len;
-	locale_t ctype;
-	_SIMPLE_STRING b;
-	char mb[MB_CUR_MAX + 1];
-	const wchar_t *nptr0 = nptr;
-	const wchar_t *first;
 
-	NORMALIZE_LOCALE(loc);
-	ctype = __numeric_ctype(loc);
-
-	while (iswspace_l(*nptr, ctype))
+	while (iswspace(*nptr))
 		nptr++;
 
-	if ((b = _simple_salloc()) == NULL)
-		return (0.0);
-
-	first = nptr;
+	wcp = nptr;
 	mbs = initial;
-	while (*nptr && (len = wcrtomb_l(mb, *nptr, &mbs, ctype)) != (size_t)-1) {
-		mb[len] = 0;
-		if (_simple_sappend(b, mb) < 0) { /* no memory */
-			_simple_sfree(b);
-			return (0.0);
-		}
-		nptr++;
+	if ((len = wcsrtombs(NULL, &wcp, 0, &mbs)) == (size_t)-1) {
+		if (endptr != NULL)
+			*endptr = (wchar_t *)nptr;
+		return (0.0);
 	}
+	if ((buf = malloc(len + 1)) == NULL)
+		return (0.0);
+	mbs = initial;
+	wcsrtombs(buf, &wcp, len + 1, &mbs);
 
-	buf = _simple_string(b);
-	val = strtold_l(buf, &end, loc);
+	val = strtold(buf, &end);
 
 	if (endptr != NULL)
-		*endptr = (end == buf) ? (wchar_t *)nptr0 : ((wchar_t *)first + __wcs_end_offset(buf, end, loc));
+		*endptr = (wchar_t *)nptr + (end - buf);
 
-	_simple_sfree(b);
+	free(buf);
 
 	return (val);
-}
-
-long double
-wcstold(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr)
-{
-	return wcstold_l(nptr, endptr, __current_locale());
 }

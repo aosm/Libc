@@ -12,6 +12,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -33,7 +37,7 @@
 static char sccsid[] = "@(#)getopt.c	8.3 (Berkeley) 4/27/95";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdlib/getopt.c,v 1.8 2007/01/09 00:28:10 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/getopt.c,v 1.7 2004/03/06 17:05:45 ache Exp $");
 
 #include "namespace.h"
 #include <stdio.h>
@@ -44,23 +48,15 @@ __FBSDID("$FreeBSD: src/lib/libc/stdlib/getopt.c,v 1.8 2007/01/09 00:28:10 imp E
 
 #include "libc_private.h"
 
-#ifndef BUILDING_VARIANT
 int	opterr = 1,		/* if error message should be printed */
 	optind = 1,		/* index into parent argv vector */
 	optopt,			/* character checked for validity */
 	optreset;		/* reset getopt */
 char	*optarg;		/* argument associated with option */
-#endif /* !BUILDING_VARIANT */
 
 #define	BADCH	(int)'?'
 #define	BADARG	(int)':'
 #define	EMSG	""
-
-#if __DARWIN_UNIX03
-#define PROGNAME nargv[0]
-#else
-#define PROGNAME _getprogname()
-#endif
 
 /*
  * getopt --
@@ -107,8 +103,8 @@ getopt(nargc, nargv, ostr)
 			++optind;
 		if (opterr && *ostr != ':')
 			(void)fprintf(stderr,
-			    "%s: illegal option -- %c\n",
-			    PROGNAME, optopt);
+			    "%s: illegal option -- %c\n", _getprogname(),
+			    optopt);
 		return (BADCH);
 	}
 
@@ -127,19 +123,13 @@ getopt(nargc, nargv, ostr)
 			optarg = nargv[optind];
 		else {
 			/* option-argument absent */
-#if __DARWIN_UNIX03
-			/* Yes, the standard will put optind past the last
-			   argument */
-			++optind;
-			optarg = NULL;
-#endif /* __DARWIN_UNIX03 */
 			place = EMSG;
 			if (*ostr == ':')
 				return (BADARG);
 			if (opterr)
 				(void)fprintf(stderr,
 				    "%s: option requires an argument -- %c\n",
-				    PROGNAME, optopt);
+				    _getprogname(), optopt);
 			return (BADCH);
 		}
 		place = EMSG;

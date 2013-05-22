@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,7 +35,7 @@
 static char sccsid[] = "@(#)tempnam.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdio/tempnam.c,v 1.11 2007/01/09 00:28:07 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/tempnam.c,v 1.10 2002/03/22 21:53:04 obrien Exp $");
 
 #include <sys/param.h>
 #include <errno.h>
@@ -53,60 +57,35 @@ tempnam(dir, pfx)
 	int sverrno;
 	char *f, *name;
 
-	if (!(name = malloc(MAXPATHLEN))) {
+	if (!(name = malloc(MAXPATHLEN)))
 		return(NULL);
-	}
 
 	if (!pfx)
 		pfx = "tmp.";
 
-#if !__DARWIN_UNIX03
 	if (issetugid() == 0 && (f = getenv("TMPDIR"))) {
 		(void)snprintf(name, MAXPATHLEN, "%s%s%sXXXXXX", f,
 		    *(f + strlen(f) - 1) == '/'? "": "/", pfx);
-		if ((f = _mktemp(name))) {
+		if ((f = _mktemp(name)))
 			return(f);
-		}
 	}
-#endif /* !__DARWIN_UNIX03 */
+
 	if ((f = (char *)dir)) {
-#if __DARWIN_UNIX03
-	    if (access(dir, W_OK) == 0) {
-#endif /* __DARWIN_UNIX03 */
 		(void)snprintf(name, MAXPATHLEN, "%s%s%sXXXXXX", f,
 		    *(f + strlen(f) - 1) == '/'? "": "/", pfx);
-		if ((f = _mktemp(name))) {
+		if ((f = _mktemp(name)))
 			return(f);
-		}
-#if __DARWIN_UNIX03
-	    }
-#endif /* __DARWIN_UNIX03 */
 	}
 
 	f = P_tmpdir;
-#if __DARWIN_UNIX03
-	if (access(f, W_OK) == 0) {	/* directory accessible? */
-#endif /* __DARWIN_UNIX03 */
 	(void)snprintf(name, MAXPATHLEN, "%s%sXXXXXX", f, pfx);
-	if ((f = _mktemp(name))) {
+	if ((f = _mktemp(name)))
 		return(f);
-	}
 
-#if __DARWIN_UNIX03
-	}
-	if (issetugid() == 0 && (f = getenv("TMPDIR")) && access(f, W_OK) == 0) {
-		(void)snprintf(name, MAXPATHLEN, "%s%s%sXXXXXX", f,
-		    *(f + strlen(f) - 1) == '/'? "": "/", pfx);
-		if ((f = _mktemp(name))) {
-			return(f);
-		}
-	}
-#endif /* __DARWIN_UNIX03 */
 	f = _PATH_TMP;
 	(void)snprintf(name, MAXPATHLEN, "%s%sXXXXXX", f, pfx);
-	if ((f = _mktemp(name))) {
+	if ((f = _mktemp(name)))
 		return(f);
-	}
 
 	sverrno = errno;
 	free(name);

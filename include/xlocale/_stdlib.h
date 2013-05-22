@@ -37,11 +37,12 @@ size_t	 mbstowcs_l(wchar_t * __restrict , const char * __restrict, size_t,
 	    locale_t);
 int	 mbtowc_l(wchar_t * __restrict, const char * __restrict, size_t,
 	    locale_t);
-double	 strtod_l(const char *, char **, locale_t) __DARWIN_ALIAS(strtod_l);
-float	 strtof_l(const char *, char **, locale_t) __DARWIN_ALIAS(strtof_l);
+double	 strtod_l(const char *, char **, locale_t);
+float	 strtof_l(const char *, char **, locale_t);
 long	 strtol_l(const char *, char **, int, locale_t);
 long double
-	 strtold_l(const char *, char **, locale_t);
+	 strtold_l(const char *, char **, locale_t)
+	     __DARWIN_LDBL_COMPAT2(strtold_l);
 long long
 	 strtoll_l(const char *, char **, int, locale_t);
 #if !__DARWIN_NO_LONG_LONG
@@ -59,11 +60,6 @@ unsigned long long
 size_t	 wcstombs_l(char * __restrict, const wchar_t * __restrict, size_t,
 	    locale_t);
 int	 wctomb_l(char *, wchar_t, locale_t);
-
-/* Poison the following routines if -fshort-wchar is set */
-#if !defined(__cplusplus) && defined(__WCHAR_MAX__) && __WCHAR_MAX__ <= 0xffffU
-#pragma GCC poison mbstowcs_l mbtowc_l wcstombs_l wctomb_l
-#endif
 __END_DECLS
 
 #endif /* _XLOCALE__STDLIB_H_ */

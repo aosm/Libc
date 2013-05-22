@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,7 +38,7 @@
 static char sccsid[] = "@(#)fputs.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdio/fputs.c,v 1.12 2007/01/09 00:28:06 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/fputs.c,v 1.11 2002/10/12 16:13:37 mike Exp $");
 
 #include "namespace.h"
 #include <stdio.h>
@@ -43,9 +47,6 @@ __FBSDID("$FreeBSD: src/lib/libc/stdio/fputs.c,v 1.12 2007/01/09 00:28:06 imp Ex
 #include "fvwrite.h"
 #include "libc_private.h"
 #include "local.h"
-
-// 3340719: __puts_null__ is used if string is NULL.  Defined in puts.c
-__private_extern__ char const __puts_null__[];
 
 /*
  * Write the given string to the given file.
@@ -59,9 +60,6 @@ fputs(s, fp)
 	struct __suio uio;
 	struct __siov iov;
 
-	// 3340719: __puts_null__ is used if s is NULL
-	if(s == NULL)
-		s = __puts_null__;
 	iov.iov_base = (void *)s;
 	iov.iov_len = uio.uio_resid = strlen(s);
 	uio.uio_iov = &iov;
@@ -70,9 +68,5 @@ fputs(s, fp)
 	ORIENT(fp, -1);
 	retval = __sfvwrite(fp, &uio);
 	FUNLOCKFILE(fp);
-#if __DARWIN_UNIX03
-	if (retval == 0)
-		return iov.iov_len;
-#endif /* __DARWIN_UNIX03 */
 	return (retval);
 }

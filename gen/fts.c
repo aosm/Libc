@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2000, 2003, 2005, 2008 Apple Inc. All rights reserved.
+ * Copyright (c) 1999 Apple Computer, Inc. All rights reserved.
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -64,9 +64,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#ifdef __BLOCKS__
-#include <Block.h>
-#endif /* __BLOCKS__ */
 
 static FTSENT	*fts_alloc(FTS *, char *, int);
 static FTSENT	*fts_build(FTS *, int);
@@ -91,51 +88,30 @@ static u_short	 fts_stat(FTS *, FTSENT *, int);
 #define	BNAMES		2		/* fts_children, names only */
 #define	BREAD		3		/* fts_read */
 
-/* 5653270
- * For directories containing > 64k subdirectories (or HFS+ with > 64k files
- * and subdirectories), struct stat's st_nlink (16 bits) will overflow.  This
- * causes the case with FTS_NOSTAT and FTS_PHYSICAL set to prematurely stop
- * recursing into subdirectories, because of an optimization that expects
- * st_nlink to be the number of subdirectories (once that number has been
- * encountered, no further calls to stat should be needed).
- *
- * However, on Mac OS X, another optimization largely nullifies the st_nlink
- * optimization.  struct dirent contains d_type, which can distinguish
- * directories from files without initially calling stat. So stat is only
- * called on known directories, rather than on other files.  With this
- * optimization, the difference in also using the st_nlink optimization is
- * pretty minimal (tests show an improvement of a percent or two, probably
- * due to additional if statement clauses that need to be evaluated). 
- *
- * So removing the st_nlink optimization code will fix the > 64k subdirectories
- * problem.  And if we replace the multiple if clause logic with a single
- * switch statement, we can recover the minimal performance lose.  We can
- * go even further and for the case of FTS_NOSTAT and FTS_LOGICAL set, we
- * can use d_type to also distinguish symbolic links, and so we only need to
- * call stat on directories and symlinks, not on all files.  This provides
- * a significant performance boost in that special case.
- */
-/*
- * The following macros defines values of the dostat variable, which is or-ed
- * with the value of d_type, and the result used in a switch statement to
- * determine whether to call stat or not.  (We order the macros to minimize
- * the size of any jump table that the compiler may generate.)
- */
-#define	F_SHIFT		4		/* shift to leave space for d_type */
-#define F_NOSTAT	(0 << F_SHIFT)	/* don't do any stat's */
-#define F_STATDIRSYM	(1 << F_SHIFT)	/* only stat directories and symlinks (and unknowns) */
-#define F_ALWAYSSTAT	(2 << F_SHIFT)	/* always stat */
-#define F_STATDIR	(3 << F_SHIFT)	/* only stat directories (and unknowns) */
-
-static FTS *
-__fts_open(argv, sp)
+FTS *
+fts_open(argv, options, compar)
 	char * const *argv;
-	register FTS *sp;
+	register int options;
+	int (*compar)();
 {
+	register FTS *sp;
 	register FTSENT *p, *root;
 	register int nitems;
-	FTSENT *parent, *tmp = NULL;
+	FTSENT *parent, *tmp;
 	int len;
+
+	/* Options check. */
+	if (options & ~FTS_OPTIONMASK) {
+		errno = EINVAL;
+		return (NULL);
+	}
+
+	/* Allocate/initialize the stream */
+	if ((sp = malloc((u_int)sizeof(FTS))) == NULL)
+		return (NULL);
+	memset(sp, 0, sizeof(FTS));
+	sp->fts_compar = compar;
+	sp->fts_options = options;
 
 	/* Logical walks turn on NOCHDIR; symbolic links are too hard. */
 	if (ISSET(FTS_LOGICAL))
@@ -165,7 +141,7 @@ __fts_open(argv, sp)
 		p->fts_level = FTS_ROOTLEVEL;
 		p->fts_parent = parent;
 		p->fts_accpath = p->fts_name;
-		p->fts_info = fts_stat(sp, p, ISSET(FTS_COMFOLLOWDIR) ? -1 : ISSET(FTS_COMFOLLOW));
+		p->fts_info = fts_stat(sp, p, ISSET(FTS_COMFOLLOW));
 
 		/* Command-line "." and ".." are real directories. */
 		if (p->fts_info == FTS_DOT)
@@ -175,7 +151,7 @@ __fts_open(argv, sp)
 		 * If comparison routine supplied, traverse in sorted
 		 * order; otherwise traverse in the order specified.
 		 */
-		if (sp->fts_compar) {
+		if (compar) {
 			p->fts_link = root;
 			root = p;
 		} else {
@@ -188,7 +164,7 @@ __fts_open(argv, sp)
 			}
 		}
 	}
-	if (sp->fts_compar && nitems > 1)
+	if (compar && nitems > 1)
 		root = fts_sort(sp, root, nitems);
 
 	/*
@@ -219,56 +195,6 @@ mem2:	free(sp->fts_path);
 mem1:	free(sp);
 	return (NULL);
 }
-
-FTS *
-fts_open(argv, options, compar)
-	char * const *argv;
-	int options;
-	int (*compar)();
-{
-	register FTS *sp;
-
-	/* Options check. */
-	if (options & ~FTS_OPTIONMASK) {
-		errno = EINVAL;
-		return (NULL);
-	}
-
-	/* Allocate/initialize the stream */
-	if ((sp = malloc((u_int)sizeof(FTS))) == NULL)
-		return (NULL);
-	memset(sp, 0, sizeof(FTS));
-	sp->fts_compar = compar;
-	sp->fts_options = options;
-
-	return __fts_open(argv, sp);
-}
-
-#ifdef __BLOCKS__
-FTS *
-fts_open_b(argv, options, compar)
-	char * const *argv;
-	int options;
-	int (^compar)(const FTSENT **, const FTSENT **);
-{
-	register FTS *sp;
-
-	/* Options check. */
-	if (options & ~FTS_OPTIONMASK) {
-		errno = EINVAL;
-		return (NULL);
-	}
-
-	/* Allocate/initialize the stream */
-	if ((sp = malloc((u_int)sizeof(FTS))) == NULL)
-		return (NULL);
-	memset(sp, 0, sizeof(FTS));
-	sp->fts_compar_b = (int (^)())Block_copy(compar);
-	sp->fts_options = options | FTS_BLOCK_COMPAR;
-
-	return __fts_open(argv, sp);
-}
-#endif /* __BLOCKS__ */
 
 static void
 fts_load(sp, p)
@@ -331,12 +257,6 @@ fts_close(sp)
             }
             (void)close(sp->fts_rfd);
 	}
-
-#ifdef __BLOCKS__
-	/* Free up any block pointer. */
-	if (ISSET(FTS_BLOCK_COMPAR) && sp->fts_compar_b != NULL)
-		Block_release(sp->fts_compar_b);
-#endif /* __BLOCKS__ */
 
 	/* Free up the stream pointer. */
 	free(sp);
@@ -456,6 +376,8 @@ fts_read(sp)
 	/* Move to the next node on this level. */
 next:	tmp = p;
 	if (p = p->fts_link) {
+		free(tmp);
+
 		/*
 		 * If reached the top, return to the original directory, and
 		 * load the paths for the next root.
@@ -466,7 +388,6 @@ next:	tmp = p;
 				return (NULL);
 			}
 			fts_load(sp, p);
-			free(tmp);
 			return (sp->fts_cur = p);
 		}
 
@@ -475,10 +396,8 @@ next:	tmp = p;
 		 * ignore.  If followed, get a file descriptor so we can
 		 * get back if necessary.
 		 */
-		if (p->fts_instr == FTS_SKIP) {
-			free(tmp);
+		if (p->fts_instr == FTS_SKIP)
 			goto next;
-		}
 		if (p->fts_instr == FTS_FOLLOW) {
 			p->fts_info = fts_stat(sp, p, 1);
 			if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR))
@@ -491,7 +410,6 @@ next:	tmp = p;
 			p->fts_instr = FTS_NOINSTR;
 		}
 
-		free(tmp);
 name:		t = sp->fts_path + NAPPEND(p->fts_parent);
 		*t++ = '/';
 		memmove(t, p->fts_name, p->fts_namelen + 1);
@@ -640,9 +558,13 @@ fts_children(sp, instr)
  * and fts_read.  There are lots of special cases.
  *
  * The real slowdown in walking the tree is the stat calls.  If FTS_NOSTAT is
- * set, we can use d_type to determine if the entry is a directory (or for
- * logical walks, a directory or symlink) and not call stat for other file
- * types.  This cuts the number of stat calls significantly.
+ * set and it's a physical walk (so that symbolic links can't be directories),
+ * we can do things quickly.  First, if it's a 4.4BSD file system, the type
+ * of the file is in the directory entry.  Otherwise, we assume that the number
+ * of subdirectories in a node is equal to the number of links to the parent.
+ * The former skips all stat calls.  The latter skips stat calls in any leaf
+ * directories and for any files after the subdirectories in the directory have
+ * been found, cutting the stat calls by about 2/3.
  */
 static FTSENT *
 fts_build(sp, type)
@@ -655,8 +577,8 @@ fts_build(sp, type)
 	FTSENT *cur, *tail;
 	DIR *dirp;
 	void *adjaddr;
-	int cderrno, descend, len, level, maxlen, dostat, oflag, saved_errno;
-	char *cp = NULL;
+	int cderrno, descend, len, level, maxlen, nlinks, oflag, saved_errno;
+	char *cp;
 
 	/* Set current node pointer. */
 	cur = sp->fts_cur;
@@ -681,15 +603,20 @@ fts_build(sp, type)
 		return (NULL);
 	}
 
+	/*
+	 * Nlinks is the number of possible entries of type directory in the
+	 * directory if we're cheating on stat calls, 0 if we're not doing
+	 * any stat calls at all, -1 if we're doing stats on everything.
+	 */
 	if (type == BNAMES)
-		dostat = F_NOSTAT;
-	else if (ISSET(FTS_NOSTAT))
-		dostat = ISSET(FTS_PHYSICAL) ? F_STATDIR : F_STATDIRSYM;
+		nlinks = 0;
+	else if (ISSET(FTS_NOSTAT) && ISSET(FTS_PHYSICAL))
+		nlinks = cur->fts_nlink - (ISSET(FTS_SEEDOT) ? 0 : 2);
 	else
-		dostat = F_ALWAYSSTAT;
+		nlinks = -1;
 
 #ifdef notdef
-	(void)printf("dostat == %d\n", dostat);
+	(void)printf("nlinks == %d (cur: %d)\n", nlinks, cur->fts_nlink);
 	(void)printf("NOSTAT %d PHYSICAL %d SEEDOT %d\n",
 	    ISSET(FTS_NOSTAT), ISSET(FTS_PHYSICAL), ISSET(FTS_SEEDOT));
 #endif
@@ -709,9 +636,9 @@ fts_build(sp, type)
 	 * checking FTS_NS on the returned nodes.
 	 */
 	cderrno = 0;
-	if (dostat || type == BREAD)
+	if (nlinks || type == BREAD)
 		if (FCHDIR(sp, dirfd(dirp))) {
-			if (dostat && type == BREAD)
+			if (nlinks && type == BREAD)
 				cur->fts_errno = errno;
 			cur->fts_flags |= FTS_DONTCHDIR;
 			descend = 0;
@@ -779,49 +706,35 @@ mem1:				saved_errno = errno;
 #endif
 
 		if (cderrno) {
-			if (dostat) {
+			if (nlinks) {
 				p->fts_info = FTS_NS;
 				p->fts_errno = cderrno;
 			} else
 				p->fts_info = FTS_NSOK;
 			p->fts_accpath = cur->fts_accpath;
+		} else if (nlinks == 0
+#ifdef DT_DIR
+		    || nlinks > 0 && 
+		    dp->d_type != DT_DIR && dp->d_type != DT_UNKNOWN
+#endif
+		    ) {
+			p->fts_accpath =
+			    ISSET(FTS_NOCHDIR) ? p->fts_path : p->fts_name;
+			p->fts_info = FTS_NSOK;
 		} else {
-			/*
-			 * We need to know all file types values that d_type may
-			 * be set to.  So if that changes, the following needs
-			 * to be modified appropriately.
-			 */
-			switch(dostat | dp->d_type) {
-			case (F_STATDIR | DT_UNKNOWN):
-			case (F_STATDIR | DT_DIR):
-			case (F_STATDIRSYM | DT_UNKNOWN):
-			case (F_STATDIRSYM | DT_DIR):
-			case (F_STATDIRSYM | DT_LNK):
-			case (F_ALWAYSSTAT | DT_UNKNOWN):
-			case (F_ALWAYSSTAT | DT_FIFO):
-			case (F_ALWAYSSTAT | DT_CHR):
-			case (F_ALWAYSSTAT | DT_DIR):
-			case (F_ALWAYSSTAT | DT_BLK):
-			case (F_ALWAYSSTAT | DT_REG):
-			case (F_ALWAYSSTAT | DT_LNK):
-			case (F_ALWAYSSTAT | DT_SOCK):
-			case (F_ALWAYSSTAT | DT_WHT):
-				/* Build a file name for fts_stat to stat. */
-				if (ISSET(FTS_NOCHDIR)) {
-					p->fts_accpath = p->fts_path;
-					memmove(cp, p->fts_name, p->fts_namelen + 1);
-				} else
-					p->fts_accpath = p->fts_name;
-				/* Stat it. */
-				p->fts_info = fts_stat(sp, p, 0);
-				break;
-			default:
-				/* No stat necessary */
-				p->fts_accpath =
-				    ISSET(FTS_NOCHDIR) ? p->fts_path : p->fts_name;
-				p->fts_info = FTS_NSOK;
-				break;
-			}
+			/* Build a file name for fts_stat to stat. */
+			if (ISSET(FTS_NOCHDIR)) {
+				p->fts_accpath = p->fts_path;
+				memmove(cp, p->fts_name, p->fts_namelen + 1);
+			} else
+				p->fts_accpath = p->fts_name;
+			/* Stat it. */
+			p->fts_info = fts_stat(sp, p, 0);
+
+			/* Decrement link count if applicable. */
+			if (nlinks > 0 && (p->fts_info == FTS_D ||
+			    p->fts_info == FTS_DC || p->fts_info == FTS_DOT))
+				--nlinks;
 		}
 
 		/* We walk in directory order so "ls -f" doesn't get upset. */
@@ -916,23 +829,11 @@ fts_stat(sp, p, follow)
 		if (stat(p->fts_accpath, sbp)) {
 			saved_errno = errno;
 			if (!lstat(p->fts_accpath, sbp)) {
-				if (saved_errno == ELOOP)
-					p->fts_errno = ELOOP;
 				errno = 0;
 				return (FTS_SLNONE);
 			} 
 			p->fts_errno = saved_errno;
 			goto err;
-		}
-		/*
-		 * For FTS_COMFOLLOWDIR, drop back to lstat unless we have
-		 * a directory
-		 */
-		if (follow == -1 && !S_ISDIR(sbp->st_mode)) {
-			if (lstat(p->fts_accpath, sbp)) {
-				p->fts_errno = errno;
-				goto err;
-			}
 		}
 	} else if (lstat(p->fts_accpath, sbp)) {
 		p->fts_errno = errno;
@@ -1001,12 +902,7 @@ fts_sort(sp, head, nitems)
 	}
 	for (ap = sp->fts_array, p = head; p; p = p->fts_link)
 		*ap++ = p;
-#ifdef __BLOCKS__
-	if (ISSET(FTS_BLOCK_COMPAR))
-		qsort_b((void *)sp->fts_array, nitems, sizeof(FTSENT *), (int (^)(const void *, const void *))sp->fts_compar_b);
-	else
-#endif /* __BLOCKS__ */
-		qsort((void *)sp->fts_array, nitems, sizeof(FTSENT *), sp->fts_compar);
+	qsort((void *)sp->fts_array, nitems, sizeof(FTSENT *), sp->fts_compar);
 	for (head = *(ap = sp->fts_array); --nitems; ++ap)
 		ap[0]->fts_link = ap[1];
 	ap[0]->fts_link = NULL;

@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,15 +35,7 @@
 static char sccsid[] = "@(#)termios.c	8.2 (Berkeley) 2/21/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gen/termios.c,v 1.16 2009/05/07 13:49:48 ed Exp $");
-
-#if __DARWIN_UNIX03
-#ifdef VARIANT_CANCELABLE
-#include <pthread.h>
-
-extern void _pthread_testcancel(pthread_t thread, int isconforming);
-#endif /* VARIANT_CANCELABLE */
-#endif /* __DARWIN_UNIX03 */
+__FBSDID("$FreeBSD: src/lib/libc/gen/termios.c,v 1.13 2002/05/28 16:59:39 alfred Exp $");
 
 #include "namespace.h"
 #include <sys/types.h>
@@ -52,7 +48,6 @@ extern void _pthread_testcancel(pthread_t thread, int isconforming);
 #include <unistd.h>
 #include "un-namespace.h"
 
-#ifndef BUILDING_VARIANT
 int
 tcgetattr(fd, t)
 	int fd;
@@ -92,9 +87,6 @@ tcsetpgrp(int fd, pid_t pgrp)
 {
 	int s;
 
-	if (isatty(fd) == 0)
-		return (-1);
-
 	s = pgrp;
 	return (_ioctl(fd, TIOCSPGRP, &s));
 }
@@ -105,39 +97,11 @@ tcgetpgrp(fd)
 {
 	int s;
 
-	if (isatty(fd) == 0)
-		return ((pid_t)-1);
-
 	if (_ioctl(fd, TIOCGPGRP, &s) < 0)
 		return ((pid_t)-1);
 
 	return ((pid_t)s);
 }
-
-#if 0 // Needs API review first
-pid_t
-tcgetsid(int fd)
-{
-	int s;
-
-	if (_ioctl(fd, TIOCGSID, &s) < 0)
-		return ((pid_t)-1);
-
-	return ((pid_t)s);
-}
-
-int
-tcsetsid(int fd, pid_t pid)
-{
-
-	if (pid != getsid(0)) {
-		errno = EINVAL;
-		return (-1);
-	}
-
-	return (_ioctl(fd, TIOCSCTTY, NULL));
-}
-#endif
 
 speed_t
 cfgetospeed(t)
@@ -219,24 +183,17 @@ tcsendbreak(fd, len)
 		return (-1);
 	return (0);
 }
-#endif /* BUILDING_VARIANT */
 
 int
 __tcdrain(fd)
 	int fd;
 {
-#if __DARWIN_UNIX03
-#ifdef VARIANT_CANCELABLE
-	_pthread_testcancel(pthread_self(), 1);
-#endif /* VARIANT_CANCELABLE */
-#endif /* __DARWIN_UNIX03 */
 	return (_ioctl(fd, TIOCDRAIN, 0));
 }
 
 __weak_reference(__tcdrain, tcdrain);
 __weak_reference(__tcdrain, _tcdrain);
 
-#ifndef BUILDING_VARIANT
 int
 tcflush(fd, which)
 	int fd, which;
@@ -273,13 +230,16 @@ tcflow(fd, action)
 	case TCOON:
 		return (_ioctl(fd, TIOCSTART, 0));
 	case TCION:
-		return (_ioctl(fd, TIOCIXON, 0));
 	case TCIOFF:
-		return (_ioctl(fd, TIOCIXOFF, 0));
+		if (tcgetattr(fd, &term) == -1)
+			return (-1);
+		c = term.c_cc[action == TCIOFF ? VSTOP : VSTART];
+		if (c != _POSIX_VDISABLE && _write(fd, &c, sizeof(c)) == -1)
+			return (-1);
+		return (0);
 	default:
 		errno = EINVAL;
 		return (-1);
 	}
 	/* NOTREACHED */
 }
-#endif /* BUILDING_VARIANT */

@@ -43,9 +43,6 @@ extern thread_port_t cproc_create();
 extern void mig_init();
 extern void _pthread_set_self(pthread_t);
 
-extern void pthread_workqueue_atfork_prepare(void);
-extern void pthread_workqueue_atfork_parent(void);
-extern void pthread_workqueue_atfork_child(void);
 /*
  * Mach imports:
  */
@@ -77,9 +74,8 @@ extern void _malloc_fork_prepare(), _malloc_fork_parent();
 extern void _malloc_fork_child();
 extern void fork_mach_init();
 extern void _cproc_fork_child(), _stack_fork_child();
-extern void _asl_fork_child(void);
+extern void _lu_fork_child(void);
 extern void _pthread_fork_child(pthread_t);
-extern void _pthread_fork_child_postinit();
 extern void _notify_fork_child(void);
 
 static pthread_t psaved_self = 0;
@@ -123,12 +119,7 @@ void _cthread_fork_prepare()
 	struct pthread_atfork_entry *e;
 
 	_spin_lock(&pthread_atfork_lock);
-#ifdef TAILQ_FOREACH_REVERSE_LEGACY_ORDER
-	TAILQ_FOREACH_REVERSE(e, &pthread_atfork_queue, qentry, pthread_atfork_queue_head)
-#else /* !TAILQ_FOREACH_REVERSE_LEGACY_ORDER */
-	TAILQ_FOREACH_REVERSE(e, &pthread_atfork_queue, pthread_atfork_queue_head, qentry)
-#endif /* TAILQ_FOREACH_REVERSE_LEGACY_ORDER */
-	{
+	TAILQ_FOREACH_REVERSE(e, &pthread_atfork_queue, qentry, pthread_atfork_queue_head) {
 		if (e->prepare != NULL)
 			e->prepare();
 	}
@@ -137,8 +128,6 @@ void _cthread_fork_prepare()
 	psaved_self = pthread_self();
 	_spin_lock(&psaved_self->lock);
 	_malloc_fork_prepare();
-
-	pthread_workqueue_atfork_prepare();
 }
 
 void _cthread_fork_parent()
@@ -159,7 +148,6 @@ void _cthread_fork_parent()
 	}
 	_spin_unlock(&pthread_atfork_lock);
 
-	pthread_workqueue_atfork_parent();
 }
 
 void _cthread_fork_child()
@@ -170,6 +158,7 @@ void _cthread_fork_child()
  */
 {
 	pthread_t p = psaved_self;
+	struct pthread_atfork_entry *e;
         
 	_pthread_set_self(p);
         _spin_unlock(&psaved_self_global_lock);   
@@ -177,29 +166,31 @@ void _cthread_fork_child()
 	_malloc_fork_child();
 	p->kernel_thread = mach_thread_self();
 	p->reply_port = mach_reply_port();
+	p->mutexes = NULL;
 	p->__cleanup_stack = NULL;
 	p->death = MACH_PORT_NULL;
 	p->joiner = NULL;
 	p->detached |= _PTHREAD_CREATE_PARENT;
         _spin_unlock(&p->lock);
 
+        fork_mach_init();
 	_pthread_fork_child(p);
-}
 
-void _cthread_fork_child_postinit()
-{
-	struct pthread_atfork_entry *e;
+	_cproc_fork_child();
+
+	_lu_fork_child();
+
+	_notify_fork_child();
 
 	__is_threaded = 0;
 
-	_pthread_fork_child_postinit();
 	mig_init(1);		/* enable multi-threaded mig interfaces */
-
-	pthread_workqueue_atfork_child();
 
 	TAILQ_FOREACH(e, &pthread_atfork_queue, qentry) {
 		if (e->child != NULL)
 			e->child();
 	}
-	LOCK_INIT(pthread_atfork_lock);	
+	LOCK_INIT(pthread_atfork_lock);
+	
 }
+

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2008 Apple Inc. All rights reserved.
+ * Copyright (c) 1999 Apple Computer, Inc. All rights reserved.
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -58,9 +58,8 @@
 #include <sys/time.h>
 #define DKTYPENAMES
 #include <sys/disklabel.h>
-/* from ufs/ffs/fs.h */
-#define BBSIZE		8192
-#define SBSIZE		8192
+#include <ufs/ufs/dinode.h>
+#include <ufs/ffs/fs.h>
 
 #include <errno.h>
 #include <fcntl.h>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2008 Apple Inc. All rights reserved.
+ * Copyright (c) 2003 Apple Computer, Inc. All rights reserved.
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -48,7 +48,34 @@
  * $FreeBSD: src/lib/libc/i386/_fpmath.h,v 1.3 2004/01/18 07:57:01 das Exp $
  */
 
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__ppc__) || defined(__ppc64__)
+
+union IEEEl2bits {
+	long double	e;
+	double		d[2];
+	struct {
+		unsigned long long	sign	:1;
+		unsigned long long	exp	:11;
+		unsigned long long	manh	:52;
+		unsigned long long	sign2	:1;
+		unsigned long long	exp2	:11;
+		unsigned long long	manl	:52;
+	} bits;
+};
+
+#define	mask_nbit_l(u)	((void)0)
+#define LDBL_IMPLICIT_NBIT
+
+#define	LDBL_MANH_SIZE	52
+#define	LDBL_MANL_SIZE	53	// includes hidden bit
+
+#define LDBL_HEAD_TAIL_PAIR
+
+__private_extern__ void _ldbl2array32dd(union IEEEl2bits, uint32_t *);
+
+#define	LDBL_TO_ARRAY32(u, a) _ldbl2array32dd(u, a)
+
+#elif defined(__i386__) || defined(__x86_64__)
 
 union IEEEl2bits {
 	long double	e;
@@ -69,35 +96,6 @@ union IEEEl2bits {
 #define	LDBL_TO_ARRAY32(u, a) do {			\
 	(a)[0] = (uint32_t)(u).bits.manl;		\
 	(a)[1] = (uint32_t)(u).bits.manh;		\
-} while(0)
-#elif defined(__arm__) 
-
-union IEEEl2bits {
-    long double     e;
-    struct {
-#ifndef __ARMEB__
-	unsigned int    manl    :32;
-	unsigned int    manh    :20;
-	unsigned int    exp     :11;
-	unsigned int    sign    :1;
-#else
-	unsigned int            sign    :1;
-	unsigned int            exp     :11;
-	unsigned int            manh    :20;
-	unsigned int            manl    :32;
-#endif
-    } bits;
-};
-
-#define LDBL_NBIT       0
-#define mask_nbit_l(u)  ((void)0)
-
-#define LDBL_MANH_SIZE  20
-#define LDBL_MANL_SIZE  32
-
-#define LDBL_TO_ARRAY32(u, a) do {                      \
-        (a)[0] = (uint32_t)(u).bits.manl;               \
-        (a)[1] = (uint32_t)(u).bits.manh;               \
 } while(0)
 
 #else

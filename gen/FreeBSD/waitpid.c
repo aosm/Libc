@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,7 +35,7 @@
 static char sccsid[] = "@(#)waitpid.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gen/waitpid.c,v 1.7 2007/01/09 00:27:56 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/gen/waitpid.c,v 1.6 2002/02/01 00:57:29 obrien Exp $");
 
 #include "namespace.h"
 #include <sys/types.h>
@@ -40,31 +44,10 @@ __FBSDID("$FreeBSD: src/lib/libc/gen/waitpid.c,v 1.7 2007/01/09 00:27:56 imp Exp
 #include <sys/resource.h>
 #include "un-namespace.h"
 
-#if __DARWIN_UNIX03
-#include <errno.h>
-#endif /* __DARWIN_UNIX03 */
-#ifdef VARIANT_CANCELABLE
-int __wait4(pid_t, int *, int , struct rusage *);
-#else /* !VARIANT_CANCELABLE */
-int __wait4_nocancel(pid_t, int *, int , struct rusage *);
-#endif /* VARIANT_CANCELABLE */
-
 pid_t
 __waitpid(pid_t pid, int *istat, int options)
 {
-#if __DARWIN_UNIX03
-	/* POSIX: Validate waitpid() options before calling wait4() */
-	if ((options & (WCONTINUED | WNOHANG | WUNTRACED)) != options) {
-		errno = EINVAL;
-		return ((pid_t)-1);
-	}
-#endif	/* __DARWIN_UNIX03 */
-
-#ifdef VARIANT_CANCELABLE
-	return (__wait4(pid, istat, options, (struct rusage *)0));
-#else /* !VARIANT_CANCELABLE */
-	return (__wait4_nocancel(pid, istat, options, (struct rusage *)0));
-#endif /* VARIANT_CANCELABLE */
+	return (_wait4(pid, istat, options, (struct rusage *)0));
 }
 
 __weak_reference(__waitpid, waitpid);

@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -28,20 +32,16 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char sccsid[] = "@(#)inet_makeaddr.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)inet_makeaddr.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/inet/inet_makeaddr.c,v 1.4 2007/06/03 17:20:26 ume Exp $");
-
-#include "port_before.h"
+__FBSDID("$FreeBSD: src/lib/libc/net/inet_makeaddr.c,v 1.4 2002/03/22 21:52:29 obrien Exp $");
 
 #include <sys/param.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include "port_after.h"
-
-/*%
+/*
  * Formulate an Internet address from network + host.  Used in
  * building addresses stored in the ifnet structure.
  */
@@ -49,18 +49,18 @@ struct in_addr
 inet_makeaddr(net, host)
 	in_addr_t net, host;
 {
-	struct in_addr a;
+	in_addr_t addr;
 
-	if (net < 128U)
-		a.s_addr = (net << IN_CLASSA_NSHIFT) | (host & IN_CLASSA_HOST);
-	else if (net < 65536U)
-		a.s_addr = (net << IN_CLASSB_NSHIFT) | (host & IN_CLASSB_HOST);
+	if (net < 128)
+		addr = (net << IN_CLASSA_NSHIFT) | (host & IN_CLASSA_HOST);
+	else if (net < 65536)
+		addr = (net << IN_CLASSB_NSHIFT) | (host & IN_CLASSB_HOST);
 	else if (net < 16777216L)
-		a.s_addr = (net << IN_CLASSC_NSHIFT) | (host & IN_CLASSC_HOST);
+		addr = (net << IN_CLASSC_NSHIFT) | (host & IN_CLASSC_HOST);
 	else
-		a.s_addr = net | host;
-	a.s_addr = htonl(a.s_addr);
-	return (a);
+		addr = net | host;
+	addr = htonl(addr);
+	return (*(struct in_addr *)&addr);
 }
 
 /*
@@ -69,5 +69,3 @@ inet_makeaddr(net, host)
  */
 #undef inet_makeaddr
 __weak_reference(__inet_makeaddr, inet_makeaddr);
-
-/*! \file */

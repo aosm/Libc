@@ -25,22 +25,21 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/locale/collcmp.c,v 1.18 2005/02/27 14:54:23 phantom Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/locale/collcmp.c,v 1.17 2003/08/03 19:28:23 ache Exp $");
 
-#include <xlocale.h>
-#include <wchar.h>
+#include <string.h>
 #include "collate.h"
 
 /*
  * Compare two characters using collate
  */
 
-__private_extern__ int
-__collate_range_cmp(wchar_t c1, wchar_t c2, locale_t loc)
+int __collate_range_cmp(c1, c2)
+	int c1, c2;
 {
-	static wchar_t s1[2], s2[2];
+	static char s1[2], s2[2];
 
 	s1[0] = c1;
 	s2[0] = c2;
-	return (wcscoll_l(s1, s2, loc));
+	return (strcoll(s1, s2));
 }

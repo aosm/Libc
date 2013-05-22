@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2011 Apple Inc. All rights reserved.
+ * Copyright (c) 2004 Apple Computer, Inc. All rights reserved.
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -29,13 +29,6 @@
 #include <string.h>
 
 #include "aclvar.h"
-
-#if __DARWIN_ACL_EXTENDED_ALLOW != KAUTH_ACE_PERMIT
-#  error __DARWIN_ACL_EXTENDED_ALLOW != KAUTH_ACE_PERMIT
-#endif
-#if __DARWIN_ACL_EXTENDED_DENY != KAUTH_ACE_DENY
-#  error __DARWIN_ACL_EXTENDED_DENY != KAUTH_ACE_DENY
-#endif
 
 int
 acl_copy_entry(acl_entry_t dest, acl_entry_t src)
@@ -76,7 +69,6 @@ acl_create_entry_np(acl_t *acl_p, acl_entry_t *entry_p, int index)
 	ap->a_entries++;
 
 	/* initialise new entry */
-	memset(&ap->a_ace[index], 0, sizeof(ap->a_ace[index]));
 	ap->a_ace[index].ae_magic = _ACL_ENTRY_MAGIC;
 	ap->a_ace[index].ae_tag = ACL_UNDEFINED_TAG;
 
@@ -184,21 +176,22 @@ int
 acl_set_qualifier(acl_entry_t entry, const void *tag_qualifier_p)
 {
 	acl_tag_t	tag_type;
+	int		error;
 
 	_ACL_VALIDATE_ENTRY(entry);
-	if (acl_get_tag_type(entry, &tag_type) != 0)
-		return(-1);
+	if ((error = acl_get_tag_type(entry, &tag_type)) != 0)
+		return(error);
 
 	switch(tag_type) {
 	case ACL_EXTENDED_ALLOW:
 	case ACL_EXTENDED_DENY:
 		bcopy(tag_qualifier_p, &entry->ae_applicable, sizeof(guid_t));
+		error = 0;
 		break;
 	default:
-		errno = EINVAL;
-		return(-1);
+		error = EINVAL;
 	}
-	return(0);
+	return(error);
 }
 
 int
@@ -212,8 +205,7 @@ acl_set_tag_type(acl_entry_t entry, acl_tag_t tag_type)
 		entry->ae_tag = tag_type;
 		break;
 	default:
-		errno = EINVAL;
-		return(-1);
+		return(EINVAL);
 	}
 	return(0);
 }

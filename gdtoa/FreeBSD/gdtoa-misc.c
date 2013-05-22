@@ -29,20 +29,9 @@ THIS SOFTWARE.
 /* Please send bug reports to David M. Gay (dmg at acm dot org,
  * with " at " changed at "@" and " dot " changed to ".").	*/
 
-#define GDTOA_TSD
-#define Omit_Private_Memory
-
-#ifdef GDTOA_TSD
-#include <pthread.h>
-#endif /* GDTOA_TSD */
 #include "gdtoaimp.h"
 
-#ifdef GDTOA_TSD
-static pthread_key_t	gdtoa_tsd_key = (pthread_key_t)-1;
-static pthread_mutex_t	gdtoa_tsd_lock = PTHREAD_MUTEX_INITIALIZER;
-#else /* !GDTOA_TSD */
  static Bigint *freelist[Kmax+1];
-#endif /* GDTOA_TSD */
 #ifndef Omit_Private_Memory
 #ifndef PRIVATE_MEM
 #define PRIVATE_MEM 2304
@@ -50,26 +39,6 @@ static pthread_mutex_t	gdtoa_tsd_lock = PTHREAD_MUTEX_INITIALIZER;
 #define PRIVATE_mem ((PRIVATE_MEM+sizeof(double)-1)/sizeof(double))
 static double private_mem[PRIVATE_mem], *pmem_next = private_mem;
 #endif
-
-#ifdef GDTOA_TSD
-static void
-gdtoa_freelist_free(void *x)
-{
-	int i;
-	Bigint *cur, *next;
-	Bigint **fl = (Bigint **)x;
-
-	if (!fl) return;
-	for(i = 0; i < Kmax+1; fl++, i++) {
-		if (!*fl) continue;
-		for(cur = *fl; cur; cur = next) {
-			next = cur->next;
-			free(cur);
-			}
-		}
-	free(x);
-	}
-#endif /* GDTOA_TSD */
 
  Bigint *
 Balloc
@@ -84,28 +53,9 @@ Balloc
 #ifndef Omit_Private_Memory
 	unsigned int len;
 #endif
-#ifdef GDTOA_TSD
-	Bigint **freelist;
 
-	if (gdtoa_tsd_key == (pthread_key_t)-1) {
-		pthread_mutex_lock(&gdtoa_tsd_lock);
-		if (gdtoa_tsd_key == (pthread_key_t)-1) {
-			gdtoa_tsd_key = __LIBC_PTHREAD_KEY_GDTOA_BIGINT;
-			pthread_key_init_np(gdtoa_tsd_key, gdtoa_freelist_free);
-			}
-		pthread_mutex_unlock(&gdtoa_tsd_lock);
-		}
-	if ((freelist = (Bigint **)pthread_getspecific(gdtoa_tsd_key)) == NULL) {
-		freelist = (Bigint **)MALLOC((Kmax+1) * sizeof(Bigint *));
-		bzero(freelist, (Kmax+1) * sizeof(Bigint *));
-		pthread_setspecific(gdtoa_tsd_key, freelist);
-		}
-#else /* !GDTOA_TSD */
 	ACQUIRE_DTOA_LOCK(0);
-#endif /* GDTOA_TSD */
-	/* The k > Kmax case does not need ACQUIRE_DTOA_LOCK(0), */
-	/* but this case seems very unlikely. */
-	if (k <= Kmax && (rv = freelist[k]) !=0) {
+	if ( (rv = freelist[k]) !=0) {
 		freelist[k] = rv->next;
 		}
 	else {
@@ -115,7 +65,7 @@ Balloc
 #else
 		len = (sizeof(Bigint) + (x-1)*sizeof(ULong) + sizeof(double) - 1)
 			/sizeof(double);
-		if (k <= Kmax && pmem_next - private_mem + len <= PRIVATE_mem) {
+		if (pmem_next - private_mem + len <= PRIVATE_mem) {
 			rv = (Bigint*)pmem_next;
 			pmem_next += len;
 			}
@@ -125,9 +75,7 @@ Balloc
 		rv->k = k;
 		rv->maxwds = x;
 		}
-#ifndef GDTOA_TSD
 	FREE_DTOA_LOCK(0);
-#endif /* GDTOA_TSD */
 	rv->sign = rv->wds = 0;
 	return rv;
 	}
@@ -141,24 +89,10 @@ Bfree
 #endif
 {
 	if (v) {
-		if (v->k > Kmax)
-#ifdef FREE
-			FREE((void*)v);
-#else
-			free((void*)v);
-#endif
-		else {
-#ifdef GDTOA_TSD
-			Bigint **freelist = (Bigint **)pthread_getspecific(gdtoa_tsd_key);
-#else /* !GDTOA_TSD */
-			ACQUIRE_DTOA_LOCK(0);
-#endif /* !GDTOA_TSD */
-			v->next = freelist[v->k];
-			freelist[v->k] = v;
-#ifndef GDTOA_TSD
-			FREE_DTOA_LOCK(0);
-#endif /* !GDTOA_TSD */
-			}
+		ACQUIRE_DTOA_LOCK(0);
+		v->next = freelist[v->k];
+		freelist[v->k] = v;
+		FREE_DTOA_LOCK(0);
 		}
 	}
 
@@ -170,8 +104,8 @@ lo0bits
 	(ULong *y)
 #endif
 {
-	int k;
-	ULong x = *y;
+	register int k;
+	register ULong x = *y;
 
 	if (x & 7) {
 		if (x & 1)
@@ -270,12 +204,12 @@ multadd
  int
 hi0bits_D2A
 #ifdef KR_headers
-	(x) ULong x;
+	(x) register ULong x;
 #else
-	(ULong x)
+	(register ULong x)
 #endif
 {
-	int k = 0;
+	register int k = 0;
 
 	if (!(x & 0xffff0000)) {
 		k = 16;
@@ -678,12 +612,12 @@ b2d
 {
 	ULong *xa, *xa0, w, y, z;
 	int k;
-	U d;
+	double d;
 #ifdef VAX
 	ULong d0, d1;
 #else
-#define d0 word0(&d)
-#define d1 word1(&d)
+#define d0 word0(d)
+#define d1 word1(d)
 #endif
 
 	xa0 = a->x;
@@ -696,16 +630,16 @@ b2d
 	*e = 32 - k;
 #ifdef Pack_32
 	if (k < Ebits) {
-		d0 = Exp_1 | y >> (Ebits - k);
+		d0 = Exp_1 | y >> Ebits - k;
 		w = xa > xa0 ? *--xa : 0;
-		d1 = y << ((32-Ebits) + k) | w >> (Ebits - k);
+		d1 = y << (32-Ebits) + k | w >> Ebits - k;
 		goto ret_d;
 		}
 	z = xa > xa0 ? *--xa : 0;
 	if (k -= Ebits) {
-		d0 = Exp_1 | y << k | z >> (32 - k);
+		d0 = Exp_1 | y << k | z >> 32 - k;
 		y = xa > xa0 ? *--xa : 0;
-		d1 = z << k | y >> (32 - k);
+		d1 = z << k | y >> 32 - k;
 		}
 	else {
 		d0 = Exp_1 | y;
@@ -729,10 +663,10 @@ b2d
 #endif
  ret_d:
 #ifdef VAX
-	word0(&d) = d0 >> 16 | d0 << 16;
-	word1(&d) = d1 >> 16 | d1 << 16;
+	word0(d) = d0 >> 16 | d0 << 16;
+	word1(d) = d1 >> 16 | d1 << 16;
 #endif
-	return dval(&d);
+	return dval(d);
 	}
 #undef d0
 #undef d1
@@ -740,13 +674,12 @@ b2d
  Bigint *
 d2b
 #ifdef KR_headers
-	(dd, e, bits) double dd; int *e, *bits;
+	(d, e, bits) double d; int *e, *bits;
 #else
-	(double dd, int *e, int *bits)
+	(double d, int *e, int *bits)
 #endif
 {
 	Bigint *b;
-	U d;
 #ifndef Sudden_Underflow
 	int i;
 #endif
@@ -754,14 +687,11 @@ d2b
 	ULong *x, y, z;
 #ifdef VAX
 	ULong d0, d1;
+	d0 = word0(d) >> 16 | word0(d) << 16;
+	d1 = word1(d) >> 16 | word1(d) << 16;
 #else
-#define d0 word0(&d)
-#define d1 word1(&d)
-#endif
-	d.d = dd;
-#ifdef VAX
-	d0 = word0(&d) >> 16 | word0(&d) << 16;
-	d1 = word1(&d) >> 16 | word1(&d) << 16;
+#define d0 word0(d)
+#define d1 word1(d)
 #endif
 
 #ifdef Pack_32
@@ -785,7 +715,7 @@ d2b
 #ifdef Pack_32
 	if ( (y = d1) !=0) {
 		if ( (k = lo0bits(&y)) !=0) {
-			x[0] = y | z << (32 - k);
+			x[0] = y | z << 32 - k;
 			z >>= k;
 			}
 		else
@@ -796,6 +726,10 @@ d2b
 		     b->wds = (x[1] = z) !=0 ? 2 : 1;
 		}
 	else {
+#ifdef DEBUG
+		if (!z)
+			Bug("Zero passed to d2b");
+#endif
 		k = lo0bits(&z);
 		x[0] = z;
 #ifndef Sudden_Underflow
@@ -854,7 +788,7 @@ d2b
 #endif
 #ifdef IBM
 		*e = (de - Bias - (P-1) << 2) + k;
-		*bits = 4*P + 8 - k - hi0bits(word0(&d) & Frac_mask);
+		*bits = 4*P + 8 - k - hi0bits(word0(d) & Frac_mask);
 #else
 		*e = de - Bias - (P-1) + k;
 		*bits = P - k;
@@ -907,7 +841,7 @@ strcp_D2A(a, b) char *a; char *b;
 strcp_D2A(char *a, CONST char *b)
 #endif
 {
-	while((*a = *b++))
+	while(*a = *b++)
 		a++;
 	return a;
 	}
@@ -921,8 +855,8 @@ memcpy_D2A(a, b, len) Char *a; Char *b; size_t len;
 memcpy_D2A(void *a1, void *b1, size_t len)
 #endif
 {
-	char *a = (char*)a1, *ae = a + len;
-	char *b = (char*)b1, *a0 = a;
+	register char *a = (char*)a1, *ae = a + len;
+	register char *b = (char*)b1, *a0 = a;
 	while(a < ae)
 		*a++ = *b++;
 	return a0;

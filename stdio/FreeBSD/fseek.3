@@ -13,6 +13,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -30,7 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)fseek.3	8.1 (Berkeley) 6/4/93
-.\" $FreeBSD: src/lib/libc/stdio/fseek.3,v 1.27 2007/06/18 02:13:04 ache Exp $
+.\" $FreeBSD: src/lib/libc/stdio/fseek.3,v 1.25 2004/03/20 08:38:27 tjr Exp $
 .\"
 .Dd March 19, 2004
 .Dt FSEEK 3
@@ -49,39 +53,20 @@
 .Sh SYNOPSIS
 .In stdio.h
 .Ft int
-.Fo fgetpos
-.Fa "FILE *restrict stream"
-.Fa "fpos_t *restrict pos"
-.Fc
-.Ft int
-.Fo fseek
-.Fa "FILE *stream"
-.Fa "long offset"
-.Fa "int whence"
-.Fc
-.Ft int
-.Fo fseeko
-.Fa "FILE *stream"
-.Fa "off_t offset"
-.Fa "int whence"
-.Fc
-.Ft int
-.Fo fsetpos
-.Fa "FILE *stream"
-.Fa "const fpos_t *pos"
-.Fc
+.Fn fseek "FILE *stream" "long offset" "int whence"
 .Ft long
-.Fo ftell
-.Fa "FILE *stream"
-.Fc
-.Ft off_t
-.Fo ftello
-.Fa "FILE *stream"
-.Fc
+.Fn ftell "FILE *stream"
 .Ft void
-.Fo rewind
-.Fa "FILE *stream"
-.Fc
+.Fn rewind "FILE *stream"
+.Ft int
+.Fn fgetpos "FILE * restrict stream" "fpos_t * restrict pos"
+.Ft int
+.Fn fsetpos "FILE *stream" "const fpos_t *pos"
+.In sys/types.h
+.Ft int
+.Fn fseeko "FILE *stream" "off_t offset" "int whence"
+.Ft off_t
+.Fn ftello "FILE *stream"
 .Sh DESCRIPTION
 The
 .Fn fseek
@@ -251,9 +236,8 @@ The functions
 .Fn fseeko ,
 .Fn fsetpos ,
 .Fn ftell ,
-.Fn ftello ,
 and
-.Fn rewind
+.Fn ftello
 may also fail and set
 .Va errno
 for any of the errors specified for the routines
@@ -262,29 +246,12 @@ for any of the errors specified for the routines
 .Xr lseek 2 ,
 and
 .Xr malloc 3 .
-.Sh LEGACY SYNOPSIS
-.Fd #include <stdio.h>
-.Fd #include <sys/types.h>
-.Pp
-.Ft int
-.br
-.Fo fseeko
-.Fa "FILE *stream"
-.Fa "off_t offset"
-.Fa "int whence"
-.Fc ;
-.Pp
-The include file
-.In sys/types.h
-supplies the definition for
-.Vt off_t .
 .Sh SEE ALSO
 .Xr lseek 2 ,
 .Xr clearerr 3 ,
 .Xr fwide 3 ,
 .Xr ungetc 3 ,
-.Xr ungetwc 3 ,
-.Xr compat 5
+.Xr ungetwc 3
 .Sh STANDARDS
 The
 .Fn fgetpos ,

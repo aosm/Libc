@@ -9,6 +9,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -26,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)utime.3	8.1 (Berkeley) 6/4/93
-.\" $FreeBSD: src/lib/libc/gen/utime.3,v 1.14 2007/01/09 00:27:56 imp Exp $
+.\" $FreeBSD: src/lib/libc/gen/utime.3,v 1.11 2002/08/24 00:39:43 mike Exp $
 .\"
 .Dd June 4, 1993
 .Dt UTIME 3
@@ -39,10 +43,7 @@
 .Sh SYNOPSIS
 .In utime.h
 .Ft int
-.Fo utime
-.Fa "const char *path"
-.Fa "const struct utimbuf *times"
-.Fc
+.Fn utime "const char *file" "const struct utimbuf *timep"
 .Sh DESCRIPTION
 .Bf -symbolic
 This interface is obsoleted by
@@ -51,28 +52,22 @@ This interface is obsoleted by
 .Pp
 The
 .Fn utime
-function sets the access and modification times of the named file,
-based on the
-.Va actime
-and
-.Va modtime
-fields of the
-.Vt "struct utimbuf"
-pointed at by
-.Fa times .
+function sets the access and modification times of the named file from
+the structures in the argument array
+.Fa timep .
 .Pp
 If the times are specified (the
-.Fa times
+.Fa timep
 argument is
-.Pf non- Dv NULL ) ,
+.Pf non- Dv NULL )
 the caller must be the owner of the file or be the super-user.
 .Pp
 If the times are not specified (the
-.Fa times
+.Fa timep
 argument is
-.Dv NULL ) ,
-the caller must be the owner of the file,
-have permission to write the file, or be the super-user.
+.Dv NULL )
+the caller must be the owner of the file, have permission to write
+the file, or be the super-user.
 .Sh ERRORS
 The
 .Fn utime
@@ -83,13 +78,13 @@ for any of the errors specified for the library function
 .Sh SEE ALSO
 .Xr stat 2 ,
 .Xr utimes 2
-.Sh STANDARDS
-The
-.Fn utime
-function conforms to
-.St -p1003.1-88 .
 .Sh HISTORY
 A
 .Fn utime
 function appeared in
 .At v7 .
+.Sh STANDARDS
+The
+.Fn utime
+function conforms to
+.St -p1003.1-88 .

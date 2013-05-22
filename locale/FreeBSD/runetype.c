@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,26 +35,22 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/locale/runetype.c,v 1.14 2007/01/09 00:28:00 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/locale/runetype.c,v 1.11 2004/07/29 06:16:19 tjr Exp $");
 
-#include "xlocale_private.h"
-
-#include <ctype.h>
 #include <stdio.h>
 #include <runetype.h>
 
 unsigned long
-___runetype_l(__ct_rune_t c, locale_t loc)
+___runetype(c)
+	__ct_rune_t c;
 {
 	size_t lim;
-	_RuneRange *rr;
+	_RuneRange *rr = &_CurrentRuneLocale->__runetype_ext;
 	_RuneEntry *base, *re;
 
 	if (c < 0 || c == EOF)
 		return(0L);
 
-	NORMALIZE_LOCALE(loc);
-	rr = &loc->__lc_ctype->_CurrentRuneLocale.__runetype_ext;
 	/* Binary search -- see bsearch.c for explanation. */
 	base = rr->__ranges;
 	for (lim = rr->__nranges; lim != 0; lim >>= 1) {
@@ -67,10 +67,4 @@ ___runetype_l(__ct_rune_t c, locale_t loc)
 	}
 
 	return(0L);
-}
-
-unsigned long
-___runetype(__ct_rune_t c)
-{
-	return ___runetype_l(c, __current_locale());
 }

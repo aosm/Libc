@@ -43,6 +43,7 @@
  */
 
 #include <architecture/i386/asm_help.h>
+#include <SYS.h>
 
 #define JB_RBX			0
 #define JB_RBP			8
@@ -57,9 +58,7 @@
 #define JB_FPCONTROL	76
 #define JB_MASK			80
 #define JB_SAVEMASK		84		// sigsetjmp/siglongjmp only
-#define JB_ONSTACK		88	
 
-#define STACK_SSFLAGS		16		// offsetof(stack_t, ss_flags)
 
 LEAF(_sigsetjmp, 0)
 	// %rdi is sigjmp_buf * jmpbuf;
@@ -73,24 +72,12 @@ LEAF(_setjmp, 0)
 	pushq	%rdi			// Preserve the jmp_buf across the call
 	movl	$1, %edi		// how = SIG_BLOCK
 	xorq	%rsi, %rsi	      // set = NULL
-	subq	$16, %rsp		// Allocate space for the return from sigprocmask + 8 to align stack
-	movq	%rsp, %rdx		// oset = allocated space
+	subq	$8, %rsp		// Allocate space for the return from sigprocmask
+	movq	%rsp, %rdx
 	CALL_EXTERN(_sigprocmask)
 	popq	%rax			// Save the mask
-	addq	$8, %rsp		// Restore the stack to before we align it
-	movq	(%rsp), %rdi		// jmp_buf (struct sigcontext *).  Leave pointer on the stack for _sigaltstack call)
-	movl	%eax, JB_MASK(%rdi)
-
-	// Get current sigaltstack status (stack_t)
-	subq 	$32, %rsp			// 24 bytes for a stack_t, + 8 for the jmp_buf pointer, + 8 is correctly aligned
-	movq 	%rsp, %rsi			// oss
-	xorq	%rdi, %rdi			// ss == NULL
-	CALL_EXTERN(_sigaltstack)		// sigaltstack(NULL, oss)
-	movl	STACK_SSFLAGS(%rsp), %eax	// oss.ss_flags
-	movq	32(%rsp), %rdi			// jmpbuf (will be first argument to subsequent call)
-	movl	%eax, JB_ONSTACK(%rdi)		// Store ss_flags in jmpbuf
-	addq	$40, %rsp			// restore %rsp
-
+	popq	%rdi			// jmp_buf (struct sigcontext *)
+	movq	%rax, JB_MASK(%rdi)
 L_do__setjmp:
 	BRANCH_EXTERN(__setjmp)
 
@@ -106,18 +93,12 @@ LEAF(_longjmp, 0)
 	pushq	%rsi				// Preserve the value across the call
 	pushq	JB_MASK(%rdi)		// Put the mask on the stack
 	movq	$3, %rdi			// how = SIG_SETMASK
-	movq	%rsp, %rsi			// set = address where we stored the mask
-	xorq	%rdx, %rdx			// oset = NULL
+	movq	%rsp, %rsi	  // set = address where we stored the mask
+	xorq	%rdx, %rdx		      // oset = NULL
 	CALL_EXTERN_AGAIN(_sigprocmask)
-	
-	// Restore sigaltstack status
-	movq	16(%rsp), %rdi			// Grab jmpbuf but leave it on the stack
-	movl 	JB_ONSTACK(%rdi), %edi		// Pass old state to _sigunaltstack()
-	CALL_EXTERN(__sigunaltstack)
-	addq	$8, %rsp			// Restore stack
-	popq	%rsi
-	popq 	%rdi				// Pass jmpbuf to _longjmp
-
+	addq	$8, %rsp
+	popq	%rsi				// Restore the value
+	popq	%rdi				// Restore the jmp_buf
 L_do__longjmp:
 	BRANCH_EXTERN(__longjmp)	// else
 END(_longjmp)

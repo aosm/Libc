@@ -295,12 +295,6 @@ filesec_set_property(filesec_t fsec, filesec_property_t property, const void *pr
 }
 
 int
-filesec_unset_property(filesec_t fsec, filesec_property_t property)
-{
-	return filesec_set_property(fsec, property, _FILESEC_UNSET_PROPERTY);
-}
-
-int
 filesec_query_property(filesec_t fsec, filesec_property_t property, int *validptr)
 {
 	int	valid, error;

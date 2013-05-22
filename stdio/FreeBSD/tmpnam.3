@@ -13,6 +13,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -30,9 +34,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)tmpnam.3	8.2 (Berkeley) 11/17/93
-.\" $FreeBSD: src/lib/libc/stdio/tmpnam.3,v 1.20 2007/03/16 21:46:24 maxim Exp $
+.\" $FreeBSD: src/lib/libc/stdio/tmpnam.3,v 1.16 2004/06/21 19:38:25 mpp Exp $
 .\"
-.Dd November 12, 2008
+.Dd November 17, 1993
 .Dt TMPFILE 3
 .Os
 .Sh NAME
@@ -45,18 +49,11 @@
 .Sh SYNOPSIS
 .In stdio.h
 .Ft FILE *
-.Fo tmpfile
-.Fa "void"
-.Fc
+.Fn tmpfile void
 .Ft char *
-.Fo tmpnam
-.Fa "char *s"
-.Fc
+.Fn tmpnam "char *str"
 .Ft char *
-.Fo tempnam
-.Fa "const char *dir"
-.Fa "const char *pfx"
-.Fc
+.Fn tempnam "const char *tmpdir" "const char *prefix"
 .Sh DESCRIPTION
 The
 .Fn tmpfile
@@ -70,13 +67,12 @@ returns, causing the file to be automatically deleted when the last
 reference to it is closed.
 The file is opened with the access value
 .Ql w+ .
-If the environment variable
+The file is created in the directory determined by the environment variable
 .Ev TMPDIR
-is defined,
-the file is created in the specified directory.
-The default location, if
+if set.
+The default location if
 .Ev TMPDIR
-is not set, is
+is not set is
 .Pa /tmp .
 .Pp
 The
@@ -91,7 +87,7 @@ past.
 is defined in the include file
 .In stdio.h .
 If the argument
-.Fa s
+.Fa str
 is
 .Pf non- Dv NULL ,
 the file name is copied to the buffer it references.
@@ -101,7 +97,7 @@ In either case,
 returns a pointer to the file name.
 .Pp
 The buffer referenced by
-.Fa s
+.Fa str
 is expected to be at least
 .Dv L_tmpnam
 bytes in length.
@@ -117,23 +113,21 @@ is similar to
 but provides the ability to specify the directory which will
 contain the temporary file and the file name prefix.
 .Pp
-The argument
-.Fa dir
+The environment variable
+.Ev TMPDIR
+(if set), the argument
+.Fa tmpdir
 (if
 .Pf non- Dv NULL ) ,
 the directory
 .Dv P_tmpdir ,
-the environment variable
-.Ev TMPDIR
-(if set),
-the directory
+and the directory
 .Pa /tmp
-and finally, the current directory,
 are tried, in the listed order, as directories in which to store the
 temporary file.
 .Pp
 The argument
-.Fa pfx ,
+.Fa prefix ,
 if
 .Pf non- Dv NULL ,
 is used to specify a file name prefix, which will be the
@@ -162,43 +156,6 @@ return a pointer to a file name on success, and a
 .Dv NULL
 pointer
 on error.
-.Sh ENVIRONMENT
-.Bl -tag -width Ds
-.It Ev TMPDIR
-.Pf [ Fn tempnam
-only]
-If set,
-the directory in which the temporary file is stored.
-.Ev TMPDIR
-is ignored for processes
-for which
-.Xr issetugid 2
-is true.
-.El
-.Sh COMPATIBILITY
-These interfaces are provided from System V and
-.Tn ANSI
-compatibility only.
-.Pp
-Most historic implementations of these functions provide
-only a limited number of possible temporary file names
-(usually 26)
-before file names will start being recycled.
-System V implementations of these functions
-(and of
-.Xr mktemp 3 )
-use the
-.Xr access 2
-system call to determine whether or not the temporary file
-may be created.
-This has obvious ramifications for setuid or setgid programs,
-complicating the portable use of these interfaces in such programs.
-.Pp
-The
-.Fn tmpfile
-interface should not be used in software expected to be used on other systems
-if there is any possibility that the user does not wish the temporary file to
-be publicly readable and writable.
 .Sh ERRORS
 The
 .Fn tmpfile
@@ -245,15 +202,38 @@ It is strongly suggested that
 be used in place of these functions.
 (See
 the FSA.)
-.Sh LEGACY DESCRIPTION
-In legacy mode, the order directories are tried by the
-.Fn tempnam
-function is different; the environment variable
-.Ev TMPDIR
-(if defined) is used first.
+.Sh COMPATIBILITY
+These interfaces are provided from System V and
+.Tn ANSI
+compatibility only.
+.Pp
+Most historic implementations of these functions provide
+only a limited number of possible temporary file names
+(usually 26)
+before file names will start being recycled.
+System V implementations of these functions
+(and of
+.Xr mktemp 3 )
+use the
+.Xr access 2
+system call to determine whether or not the temporary file
+may be created.
+This has obvious ramifications for setuid or setgid programs,
+complicating the portable use of these interfaces in such programs.
+.Pp
+The
+.Fn tmpfile
+interface should not be used in software expected to be used on other systems
+if there is any possibility that the user does not wish the temporary file to
+be publicly readable and writable.
 .Sh SEE ALSO
 .Xr mkstemp 3 ,
 .Xr mktemp 3
+.Rs
+.%T "The FreeBSD Security Architecture"
+.Re
+(See
+.Pa "/usr/share/doc/{to be determined}" . )
 .Sh STANDARDS
 The
 .Fn tmpfile

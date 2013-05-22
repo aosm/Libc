@@ -33,7 +33,6 @@ static const char rcsid[] = "$OpenBSD: nftw.c,v 1.2 2003/07/21 21:15:32 millert 
 #include <ftw.h>
 #include <limits.h>
 #include <fcntl.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -46,7 +45,7 @@ both_ftw(const char *path,
 	const char *paths[2];
 	struct FTW ftw;
 	FTSENT *cur;
-	FTS *ftsp = NULL;
+	FTS *ftsp;
 	int ftsflags, fnflag, error, postorder, sverrno;
 	int cwd_fd = -1; /* cwd_fd != -1 means call chdir a lot */
 
@@ -64,8 +63,7 @@ both_ftw(const char *path,
 	/* XXX - nfds is currently unused */
 	if (nfds < 1 || nfds > OPEN_MAX) {
 		errno = EINVAL;
-		error = -1;
-		goto done;
+		return (-1);
 	}
 
 	ftsflags = FTS_COMFOLLOW;
@@ -86,8 +84,7 @@ both_ftw(const char *path,
 	if (ftwflags & FTW_CHDIR) {
 	    cwd_fd = open(".", O_RDONLY, 0);
 	    if (cwd_fd < 0) {
-		error = -1;
-		goto done;
+		return -1;
 	    }
 	    /* Prevent problems if fts ever starts using chdir when passed
 	      FTS_PHYSICAL */
@@ -104,17 +101,16 @@ both_ftw(const char *path,
 	  ENOTDIR, and EACCES */
 	{
 	    int rc = stat(path, &path_stat);
+	    int e = errno;
 	    if (rc < 0 
 	      && (errno == ELOOP || errno == ENAMETOOLONG || errno == ENOENT
 	      || errno == ENOTDIR || errno == EACCES)) {
-		    error = -1;
-		    goto done;
+		    return -1;
 	    }
 	    if (rc >= 0 && nfn) {
 		if (!S_ISDIR(path_stat.st_mode)) {
 		    errno = ENOTDIR;
-		    error = -1;
-		    goto done;
+		    return -1;
 		}
 	    }
 	}
@@ -123,8 +119,7 @@ both_ftw(const char *path,
 	paths[1] = NULL;
 	ftsp = fts_open((char * const *)paths, ftsflags, NULL);
 	if (ftsp == NULL) {
-	    error = -1;
-	    goto done;
+	    return (-1);
 	}
 	error = 0;
 	while ((cur = fts_read(ftsp)) != NULL) {
@@ -180,13 +175,9 @@ both_ftw(const char *path,
 		case FTS_DC:
 #if __DARWIN_UNIX03
 			/* Unix03 says nftw should break cycles and not return
-			  errors in non-physical mode (which is definitly what it
+			  errors in physical mode (which is definitly what it
 			  says ftw can't do) */
 			if (nfn && !(ftwflags & FTW_PHYS)) {
-				/* 4489297 - when FTW_DEPTH is set, skip
-				   the link also */
-				if (postorder)
-				    continue;
 				fnflag = FTW_D;
 				break;
 			}
@@ -215,14 +206,6 @@ both_ftw(const char *path,
 			free(free_me);
 		    }
 		    if (rc < 0) {
-			if(cur->fts_pathlen == cur->fts_namelen &&
-			   fnflag == FTW_DNR) {
-			    /* If cwd_fd is our last FD, fts_read will give us FTS_DNR
-			     * and fts_path == fts_name == "."
-			     * This check results in the correct errno being returned.
-			     */
-			    errno = EMFILE;
-			}
 			error = -1;
 			goto done;
 		    }
@@ -246,10 +229,7 @@ both_ftw(const char *path,
 	}
 done:
 	sverrno = errno;
-	if(ftsp != NULL)
-		(void) fts_close(ftsp);
-	if(cwd_fd >= 0)
-		(void) close(cwd_fd);
+	(void) fts_close(ftsp);
 	errno = sverrno;
 	return (error);
 }

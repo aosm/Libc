@@ -25,14 +25,12 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gen/fmtmsg.c,v 1.6 2009/11/08 14:02:54 brueffer Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/gen/fmtmsg.c,v 1.5 2003/05/01 19:03:13 nectar Exp $");
 
 #include <fmtmsg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 
 /* Default value for MSGVERB. */
 #define	DFLT_MSGVERB	"label:severity:text:action:tag"
@@ -57,9 +55,6 @@ fmtmsg(long class, const char *label, int sev, const char *text,
 {
 	FILE *fp;
 	char *env, *msgverb, *output;
-	int ret = MM_OK;
-
-	if (action == NULL) action = "";
 
 	if (class & MM_PRINT) {
 		if ((env = getenv("MSGVERB")) != NULL && *env != '\0' &&
@@ -81,12 +76,8 @@ def:
 			free(msgverb);
 			return (MM_NOTOK);
 		}
-		if (*output != '\0') {
-			int out_len = fprintf(stderr, "%s", output);
-			if (out_len < 0) {
-			    ret = MM_NOMSG;
-			}
-		}
+		if (*output != '\0')
+			fprintf(stderr, "%s", output);
 		free(msgverb);
 		free(output);
 	}
@@ -96,58 +87,16 @@ def:
 		if (output == NULL)
 			return (MM_NOCON);
 		if (*output != '\0') {
-
-/*
-//                        /-------------\
-//                       /               \
-//                      /                 \
-//                     /                   \
-//                     |   XXXX     XXXX   |
-//                     |   XXXX     XXXX   |
-//                     |   XXX       XXX   |
-//                     \         X         /
-//                      --\     XXX     /--
-//                       | |    XXX    | |
-//                       | |           | |
-//                       | I I I I I I I |
-//                       |  I I I I I I  |
-//                        \             /
-//                         --         --
-//                           \-------/
-//
-//                      DO NOT INTEGRATE THIS CHANGE
-//
-//                      Integrating it means DEATH.
-//               (see Revelation 6:8 for full details)
-
-			XXX this is a *huge* kludge to pass the SuSv3 tests,
-			  I don't think of it as cheating because they are
-			  looking in the wrong place (/realdev/console) to do
-			  their testing, but they can't look in the "right"
-			  place for various reasons */
-			char *cpath = "/dev/console";
-			struct stat sb;
-			int rc = stat("/realdev/console", &sb);
-			if (rc == 0 && (sb.st_mode & S_IFDIR)) {
-			    cpath = "/realdev/console";
+			if ((fp = fopen("/dev/console", "a")) == NULL) {
+				free(output);
+				return (MM_NOCON);
 			}
-			/* XXX thus ends the kludge - changes after
-			  this point may be safely integrated */
-
-			if ((fp = fopen(cpath, "a")) == NULL) {
-				if (ret == MM_OK) {
-				    ret = MM_NOCON;
-				} else {
-				    ret = MM_NOTOK;
-				}
-			} else {
-			    fprintf(fp, "%s", output);
-			    fclose(fp);
-			}
+			fprintf(fp, "%s", output);
+			fclose(fp);
 		}
 		free(output);
 	}
-	return (ret);
+	return (MM_OK);
 }
 
 #define INSERT_COLON							\
@@ -179,7 +128,7 @@ printfmt(char *msgverb, long class, const char *label, int sev,
 		size += strlen(sevname);
 	if (text != MM_NULLTXT)
 		size += strlen(text);
-	if (act != MM_NULLACT)
+	if (text != MM_NULLACT)
 		size += strlen(act);
 	if (tag != MM_NULLTAG)
 		size += strlen(tag);

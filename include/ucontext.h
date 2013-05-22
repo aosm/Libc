@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2008, 2009 Apple Inc. All rights reserved.
+ * Copyright (c) 2002 Apple Computer, Inc. All rights reserved.
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -21,40 +21,9 @@
  * @APPLE_LICENSE_HEADER_END@
  */
 
-/*
- * These routines are DEPRECATED and should not be used.
- */
 #ifndef _UCONTEXT_H_
 #define _UCONTEXT_H_
 
-#include <sys/cdefs.h>
-
-//Begin-Libc
-#ifdef __LIBC__
 #include <sys/ucontext.h>
-__BEGIN_DECLS
-int  getcontext(ucontext_t *);
-void makecontext(ucontext_t *, void (*)(), int, ...);
-int  setcontext(const ucontext_t *);
-int  swapcontext(ucontext_t * __restrict, const ucontext_t * __restrict);
-__END_DECLS
-#else /* !__LIBC__ */
-//End-Libc
-#ifdef _XOPEN_SOURCE
-#include <sys/ucontext.h>
-#include <Availability.h>
-
-__BEGIN_DECLS
-int  getcontext(ucontext_t *) __OSX_AVAILABLE_BUT_DEPRECATED(__MAC_10_5, __MAC_10_6, __IPHONE_2_0, __IPHONE_2_0);
-void makecontext(ucontext_t *, void (*)(), int, ...) __OSX_AVAILABLE_BUT_DEPRECATED(__MAC_10_5, __MAC_10_6, __IPHONE_2_0, __IPHONE_2_0);
-int  setcontext(const ucontext_t *) __OSX_AVAILABLE_BUT_DEPRECATED(__MAC_10_5, __MAC_10_6, __IPHONE_2_0, __IPHONE_2_0);
-int  swapcontext(ucontext_t * __restrict, const ucontext_t * __restrict) __OSX_AVAILABLE_BUT_DEPRECATED(__MAC_10_5, __MAC_10_6, __IPHONE_2_0, __IPHONE_2_0);
-__END_DECLS
-#else /* !_XOPEN_SOURCE */
-#error The deprecated ucontext routines require _XOPEN_SOURCE to be defined
-#endif /* _XOPEN_SOURCE */
-//Begin-Libc
-#endif /* __LIBC__ */
-//End-Libc
 
 #endif /* _UCONTEXT_H_ */

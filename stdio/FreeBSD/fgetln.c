@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,10 +38,9 @@
 static char sccsid[] = "@(#)fgetln.c	8.2 (Berkeley) 1/2/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdio/fgetln.c,v 1.11 2007/01/09 00:28:06 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/fgetln.c,v 1.10 2004/07/16 05:52:51 tjr Exp $");
 
 #include "namespace.h"
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,10 +65,6 @@ __slbexpand(FILE *fp, size_t newsize)
 #endif
 	if (fp->_lb._size >= newsize)
 		return (0);
-	if (newsize > INT_MAX) {
-		errno = ENOMEM;
-		return (-1);
-	}
 	if ((p = realloc(fp->_lb._base, newsize)) == NULL)
 		return (-1);
 	fp->_lb._base = p;
@@ -164,7 +163,6 @@ fgetln(FILE *fp, size_t *lenp)
 
 error:
 	*lenp = 0;		/* ??? */
-	fp->_flags |= __SERR;
 	FUNLOCKFILE(fp);
 	return (NULL);		/* ??? */
 }

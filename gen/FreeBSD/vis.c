@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,9 +35,7 @@
 static char sccsid[] = "@(#)vis.c	8.1 (Berkeley) 7/19/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gen/vis.c,v 1.14 2007/01/09 00:27:56 imp Exp $");
-
-#include "xlocale_private.h"
+__FBSDID("$FreeBSD: src/lib/libc/gen/vis.c,v 1.13 2003/10/30 12:41:50 phk Exp $");
 
 #include <sys/types.h>
 #include <limits.h>
@@ -52,20 +54,18 @@ vis(dst, c, flag, nextc)
 	int c, nextc;
 	int flag;
 {
-	locale_t loc = __current_locale();
-
 	c = (unsigned char)c;
 
 	if (flag & VIS_HTTPSTYLE) {
 		/* Described in RFC 1808 */
-		if (!(isalnum_l(c, loc) /* alpha-numeric */
+		if (!(isalnum(c) /* alpha-numeric */
 		    /* safe */
 		    || c == '$' || c == '-' || c == '_' || c == '.' || c == '+'
 		    /* extra */
 		    || c == '!' || c == '*' || c == '\'' || c == '('
 		    || c == ')' || c == ',')) {
 			*dst++ = '%';
-			snprintf_l(dst, 4, loc, (c < 16 ? "0%X" : "%X"), c);
+			snprintf(dst, 4, (c < 16 ? "0%X" : "%X"), c);
 			dst += 2;
 			goto done;
 		}
@@ -74,7 +74,7 @@ vis(dst, c, flag, nextc)
 	if ((flag & VIS_GLOB) &&
 	    (c == '*' || c == '?' || c == '[' || c == '#'))
 		;
-	else if (isgraph_l(c, loc) ||
+	else if (isgraph(c) ||
 	   ((flag & VIS_SP) == 0 && c == ' ') ||
 	   ((flag & VIS_TAB) == 0 && c == '\t') ||
 	   ((flag & VIS_NL) == 0 && c == '\n') ||
@@ -130,7 +130,7 @@ vis(dst, c, flag, nextc)
 			goto done;
 		}
 	}
-	if (((c & 0177) == ' ') || isgraph_l(c, loc) || (flag & VIS_OCTAL)) {
+	if (((c & 0177) == ' ') || isgraph(c) || (flag & VIS_OCTAL)) {
 		*dst++ = '\\';
 		*dst++ = ((u_char)c >> 6 & 07) + '0';
 		*dst++ = ((u_char)c >> 3 & 07) + '0';
@@ -143,7 +143,7 @@ vis(dst, c, flag, nextc)
 		c &= 0177;
 		*dst++ = 'M';
 	}
-	if (iscntrl_l(c, loc)) {
+	if (iscntrl(c)) {
 		*dst++ = '^';
 		if (c == 0177)
 			*dst++ = '?';

@@ -27,21 +27,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD: src/lib/libc/locale/mbsinit.c,v 1.3 2004/05/12 14:09:04 tjr Exp $");
 
-#include "xlocale_private.h"
-
 #include <wchar.h>
 #include "mblocal.h"
 
 int
-mbsinit_l(const mbstate_t *ps, locale_t loc)
-{
-
-	NORMALIZE_LOCALE(loc);
-	return (loc->__lc_ctype->__mbsinit(ps, loc));
-}
-
-int
 mbsinit(const mbstate_t *ps)
 {
-	return mbsinit_l(ps, __current_locale());
+
+	return (__mbsinit(ps));
 }

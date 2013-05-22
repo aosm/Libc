@@ -21,6 +21,7 @@
  * @APPLE_LICENSE_HEADER_END@
  */
 #include <sys/types.h>
+#include <sys/syscall.h>
 #include <sys/acl.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -34,12 +35,12 @@
 #include <stdlib.h>
 #endif
 
-static int chmodx_syscall(void *obj, uid_t fsowner, gid_t fsgrp, int mode, kauth_filesec_t fsacl);
-static int fchmodx_syscall(void *obj, uid_t fsowner, gid_t fsgrp, int mode, kauth_filesec_t fsacl);
+static int chmodx_syscall(void *obj, uid_t fsowner, gid_t fsgrp, int mode, struct kauth_filesec *fsacl);
+static int fchmodx_syscall(void *obj, uid_t fsowner, gid_t fsgrp, int mode, struct kauth_filesec *fsacl);
 
 static int chmodx1(void *obj,
 		   int (* chmod_syscall)(void *obj, uid_t fsowner, gid_t fsgrp, int mode,
-				       kauth_filesec_t fsacl),
+				       struct kauth_filesec *fsacl),
     		   filesec_t fsec);
 
 /*
@@ -60,22 +61,19 @@ fchmodx_np(int fd, filesec_t fsec)
 /*
  * Chmod syscalls.
  */
-extern int __chmod_extended(char *, uid_t, gid_t, int, kauth_filesec_t);
-extern int __fchmod_extended(int, uid_t, gid_t, int, kauth_filesec_t);
-
 static int
-chmodx_syscall(void *obj, uid_t fsowner, gid_t fsgrp, int mode, kauth_filesec_t fsacl)
+chmodx_syscall(void *obj, uid_t fsowner, gid_t fsgrp, int mode, struct kauth_filesec *fsacl)
 {
 	char *path = *(char **)obj;
 
-	return(__chmod_extended(path, fsowner, fsgrp, mode, fsacl));
+	return(syscall(SYS_chmod_extended, path, fsowner, fsgrp, mode, fsacl));
 }
 
 static int
-fchmodx_syscall(void *obj, uid_t fsowner, gid_t fsgrp, int mode, kauth_filesec_t fsacl)
+fchmodx_syscall(void *obj, uid_t fsowner, gid_t fsgrp, int mode, struct kauth_filesec *fsacl)
 {
 	int fd = *(int *)obj;
-	return(__fchmod_extended(fd, fsowner, fsgrp, mode, fsacl));
+	return(syscall(SYS_fchmod_extended, fd, fsowner, fsgrp, mode, fsacl));
 }
 
 /*
@@ -84,7 +82,7 @@ fchmodx_syscall(void *obj, uid_t fsowner, gid_t fsgrp, int mode, kauth_filesec_t
 	
 static int
 chmodx1(void *obj,
-    int (chmod_syscall)(void *obj, uid_t fsowner, gid_t fsgrp, int mode, kauth_filesec_t fsacl),
+    int (chmod_syscall)(void *obj, uid_t fsowner, gid_t fsgrp, int mode, struct kauth_filesec *fsacl),
     filesec_t fsec)
 {
 	uid_t fsowner = KAUTH_UID_NONE;
@@ -94,7 +92,7 @@ chmodx1(void *obj,
 	size_t size = 0;
 	int fsacl_used = 0;
 	int delete_acl = 0;
-	kauth_filesec_t fsacl = KAUTH_FILESEC_NONE;
+	struct kauth_filesec *fsacl = NULL;
 	struct kauth_filesec static_filesec;
 
 	if (fsec == NULL) {
@@ -131,7 +129,7 @@ chmodx1(void *obj,
 	}
 	
 	/* no ACL, use local filesec */
-	if (fsacl == KAUTH_FILESEC_NONE) {
+	if (fsacl == NULL) {
 		bzero(&static_filesec, sizeof(static_filesec));
 		fsacl = &static_filesec;
 		fsacl->fsec_magic = KAUTH_FILESEC_MAGIC;
@@ -165,7 +163,7 @@ chmodx1(void *obj,
 		if (delete_acl) {
 			fsacl = _FILESEC_REMOVE_ACL;
 		} else {
-			fsacl = KAUTH_FILESEC_NONE;
+			fsacl = NULL;
 		}
 	}
 

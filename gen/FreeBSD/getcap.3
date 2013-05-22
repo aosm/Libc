@@ -12,6 +12,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -29,9 +33,9 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)getcap.3	8.4 (Berkeley) 5/13/94
-.\" $FreeBSD: src/lib/libc/gen/getcap.3,v 1.30 2007/02/11 18:14:49 maxim Exp $
+.\" $FreeBSD: src/lib/libc/gen/getcap.3,v 1.25 2004/07/03 22:30:08 ru Exp $
 .\"
-.Dd March 22, 2002
+.Dd May 13, 1994
 .Dt GETCAP 3
 .Os
 .Sh NAME
@@ -51,19 +55,19 @@
 .Sh SYNOPSIS
 .In stdlib.h
 .Ft int
-.Fn cgetent "char **buf" "char **db_array" "const char *name"
+.Fn cgetent "char **buf" "char **db_array" "char *name"
 .Ft int
-.Fn cgetset "const char *ent"
+.Fn cgetset "char *ent"
 .Ft int
-.Fn cgetmatch "const char *buf" "const char *name"
+.Fn cgetmatch "char *buf" "char *name"
 .Ft char *
-.Fn cgetcap "char *buf" "const char *cap" "int type"
+.Fn cgetcap "char *buf" "char *cap" "int type"
 .Ft int
-.Fn cgetnum "char *buf" "const char *cap" "long *num"
+.Fn cgetnum "char *buf" "char *cap" "long *num"
 .Ft int
-.Fn cgetstr "char *buf" "const char *cap" "char **str"
+.Fn cgetstr "char *buf" "char *cap" "char **str"
 .Ft int
-.Fn cgetustr "char *buf" "const char *cap" "char **str"
+.Fn cgetustr "char *buf" "char *cap" "char **str"
 .Ft int
 .Fn cgetfirst "char **buf" "char **db_array"
 .Ft int
@@ -106,8 +110,8 @@ On success 0 is returned, 1 if the returned
 record contains an unresolved
 .Ic tc
 expansion,
-\-1 if the requested record could not be found,
-\-2 if a system error was encountered (could not open/read a file, etc.) also
+\-1 if the requested record couldn't be found,
+\-2 if a system error was encountered (couldn't open/read a file, etc.) also
 setting
 .Va errno ,
 and \-3 if a potential reference loop is detected (see
@@ -174,7 +178,7 @@ in
 .Fa buf
 is returned on success,
 .Dv NULL
-if the requested capability could not be
+if the requested capability couldn't be
 found.
 The end of the capability value is signaled by a `:' or
 .Tn ASCII
@@ -191,7 +195,7 @@ The numeric value is returned in the
 .Ft long
 pointed to by
 .Fa num .
-0 is returned on success, \-1 if the requested numeric capability could not
+0 is returned on success, \-1 if the requested numeric capability couldn't
 be found.
 .Pp
 The
@@ -210,7 +214,7 @@ pointed to by
 .Fa str .
 The number of characters in the decoded string not including the trailing
 .Dv NUL
-is returned on success, \-1 if the requested string capability could not
+is returned on success, \-1 if the requested string capability couldn't
 be found, \-2 if a system error was encountered (storage allocation
 failure).
 .Pp
@@ -253,7 +257,7 @@ expansion is done (see
 .Ic tc=
 comments below).
 Upon completion of the database 0 is returned, 1 is returned upon successful
-return of record with possibly more remaining (we have not reached the end of
+return of record with possibly more remaining (we haven't reached the end of
 the database yet), 2 is returned if the record contains an unresolved
 .Ic tc
 expansion, \-1 is returned if a system error occurred, and \-2
@@ -320,7 +324,7 @@ does not exist
 .Pp
 Names consist of one or more characters.
 Names may contain any character
-except `:', but it is usually best to restrict them to the printable
+except `:', but it's usually best to restrict them to the printable
 characters and avoid use of graphics like `#', `=', `%', `@', etc.
 Types
 are single characters used to separate capability names from their
@@ -527,7 +531,7 @@ on failure.
 The
 .Fn cgetent ,
 and
-.Fn cgetset
+.Fn cgetseq
 functions may fail and set
 .Va errno
 for any of the errors specified for the library functions:
@@ -555,7 +559,7 @@ No memory to allocate.
 .Xr cap_mkdb 1 ,
 .Xr malloc 3
 .Sh BUGS
-Colons (`:') cannot be used in names, types, or values.
+Colons (`:') can't be used in names, types, or values.
 .Pp
 There are no checks for
 .Ic tc Ns = Ns Ic name

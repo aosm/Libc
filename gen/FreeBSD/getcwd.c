@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,7 +35,7 @@
 static char sccsid[] = "@(#)getcwd.c	8.5 (Berkeley) 2/7/95";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gen/getcwd.c,v 1.29 2007/01/09 00:27:53 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/gen/getcwd.c,v 1.25 2003/10/29 10:45:01 tjr Exp $");
 
 #include "namespace.h"
 #include <sys/param.h>
@@ -50,87 +54,12 @@ __FBSDID("$FreeBSD: src/lib/libc/gen/getcwd.c,v 1.29 2007/01/09 00:27:53 imp Exp
 	(dp->d_name[0] == '.' && (dp->d_name[1] == '\0' || \
 	    (dp->d_name[1] == '.' && dp->d_name[2] == '\0')))
 
-/*
- * If __getcwd() ever becomes a syscall, we can remove this workaround.
- * The problem here is that fcntl() assumes a buffer of size MAXPATHLEN,
- * if size is less than MAXPATHLEN, we need to use a temporary buffer
- * and see if it fits.  We also have to assume that open() or fcntl()
- * don't fail with errno=ERANGE.
- */
-static inline int
-__getcwd(char *buf, size_t size)
-{
-	int fd, err, save;
-	struct stat dot, pt;
-	char *b;
+extern int __getcwd(char *, size_t);
 
-	if ((fd = open(".", O_RDONLY)) < 0)
-		return -1;
-	if (fstat(fd, &dot) < 0) {
-		save = errno;
-		close(fd);
-		errno = save;
-		return -1;
-	}
-	/* check that the device and inode are non-zero, otherwise punt */
-	if (dot.st_dev == 0 || dot.st_ino == 0) {
-		close(fd);
-		errno = EINVAL;
-		return -1;
-	}
-	if (size < MAXPATHLEN) {
-		/* the hard case; allocate a buffer of size MAXPATHLEN to use */
-		b = (char *)alloca(MAXPATHLEN);
-		if (b == NULL) {
-			close(fd);
-			errno = ENOMEM; /* make sure it isn't ERANGE */
-			return -1;
-		}
-	} else
-		b = buf;
-
-	err = fcntl(fd, F_GETPATH, b);
-	if (err) {
-		save = errno;
-		close(fd);
-		errno = save;
-		return err;
-	}
-	close(fd);
-	/*
-	 * now double-check that the path returned by fcntl() has the same
-	 * device and inode number as '.'.
-	 */
-	if (stat(b, &pt) < 0)
-		return -1;
-	/*
-	 * Since dot.st_dev and dot.st_ino are non-zero, we don't need to
-	 * separately test for pt.st_dev and pt.st_ino being non-zero, because
-	 * they have to match
-	 */
-	if (dot.st_dev != pt.st_dev || dot.st_ino != pt.st_ino) {
-		errno = EINVAL;
-		return -1;
-	}
-	/*
-	 * For the case where we allocated a buffer, check that it can fit
-	 * in the real buffer, and copy it over.
-	 */
-	if (size < MAXPATHLEN) {
-		if (strlen(b) >= size) {
-			errno = ERANGE;
-			return -1;
-		}
-		strcpy(buf, b);
-	}
-	return 0;
-}
-
-__private_extern__ char *
-__private_getcwd(pt, size, usegetpath)
+char *
+getcwd(pt, size)
 	char *pt;
 	size_t size;
-	int usegetpath;
 {
 	struct dirent *dp;
 	DIR *dir = NULL;
@@ -162,25 +91,31 @@ __private_getcwd(pt, size, usegetpath)
 		}
 		ept = pt + size;
 	} else {
-		if ((pt = malloc(ptsize = MAXPATHLEN)) == NULL)
+		if ((pt = malloc(ptsize = 1024 - 4)) == NULL)
 			return (NULL);
 		ept = pt + ptsize;
 	}
-	if (usegetpath) {
-		if (__getcwd(pt, ept - pt) == 0) {
-			return (pt);
-		} else if (errno == ERANGE) /* failed because buffer too small */
-			return NULL;
+	if (__getcwd(pt, ept - pt) == 0) {
+		if (*pt != '/') {
+			bpt = pt;
+			ept = pt + strlen(pt) - 1;
+			while (bpt < ept) {
+				c = *bpt;
+				*bpt++ = *ept;
+				*ept-- = c;
+			}
+		}
+		return (pt);
 	}
 	bpt = ept - 1;
 	*bpt = '\0';
 
 	/*
-	 * Allocate MAXPATHLEN bytes for the string of "../"'s.
-	 * Should always be enough.  If it's not, allocate
+	 * Allocate bytes (1024 - malloc space) for the string of "../"'s.
+	 * Should always be enough (it's 340 levels).  If it's not, allocate
 	 * as necessary.  Special case the first stat, it's ".", not "..".
 	 */
-	if ((up = malloc(upsize = MAXPATHLEN)) == NULL)
+	if ((up = malloc(upsize = 1024 - 4)) == NULL)
 		goto err;
 	eup = up + MAXPATHLEN;
 	bup = up;
@@ -222,7 +157,7 @@ __private_getcwd(pt, size, usegetpath)
 		 * as necessary.  Max length is 3 for "../", the largest
 		 * possible component name, plus a trailing NUL.
 		 */
-		while (bup + 3  + MAXNAMLEN + 1 >= eup) {
+		if (bup + 3  + MAXNAMLEN + 1 >= eup) {
 			if ((up = reallocf(up, upsize *= 2)) == NULL)
 				goto err;
 			bup = up;
@@ -276,7 +211,7 @@ __private_getcwd(pt, size, usegetpath)
 		 * Check for length of the current name, preceding slash,
 		 * leading slash.
 		 */
-		while (bpt - pt < dp->d_namlen + (first ? 1 : 2)) {
+		if (bpt - pt < dp->d_namlen + (first ? 1 : 2)) {
 			size_t len, off;
 
 			if (!ptsize) {
@@ -323,12 +258,4 @@ err:
 
 	errno = save_errno;
 	return (NULL);
-}
-
-char *
-getcwd(pt, size)
-	char *pt;
-	size_t size;
-{
-	return __private_getcwd(pt, size, 1);
 }

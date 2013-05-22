@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,9 +38,7 @@ static char sccsid[] = "from @(#)strtol.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 __FBSDID("FreeBSD: src/lib/libc/stdlib/strtoimax.c,v 1.8 2002/09/06 11:23:59 tjr Exp ");
 #endif
-__FBSDID("$FreeBSD: src/lib/libc/locale/wcstoimax.c,v 1.3 2007/01/09 00:28:01 imp Exp $");
-
-#include "xlocale_private.h"
+__FBSDID("$FreeBSD: src/lib/libc/locale/wcstoimax.c,v 1.2 2003/01/01 18:48:43 schweikh Exp $");
 
 #include <errno.h>
 #include <inttypes.h>
@@ -48,8 +50,8 @@ __FBSDID("$FreeBSD: src/lib/libc/locale/wcstoimax.c,v 1.3 2007/01/09 00:28:01 im
  * Convert a wide character string to an intmax_t integer.
  */
 intmax_t
-wcstoimax_l(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr,
-    int base, locale_t loc)
+wcstoimax(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr,
+    int base)
 {
 	const wchar_t *s;
 	uintmax_t acc;
@@ -57,14 +59,13 @@ wcstoimax_l(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr,
 	uintmax_t cutoff;
 	int neg, any, cutlim;
 
-	NORMALIZE_LOCALE(loc);
 	/*
 	 * See strtoimax for comments as to the logic used.
 	 */
 	s = nptr;
 	do {
 		c = *s++;
-	} while (iswspace_l(c, loc));
+	} while (iswspace(c));
 	if (c == L'-') {
 		neg = 1;
 		c = *s++;
@@ -91,8 +92,8 @@ wcstoimax_l(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr,
 	cutoff /= base;
 	for ( ; ; c = *s++) {
 #ifdef notyet
-		if (iswdigit_l(c, loc))
-			c = digittoint_l(c, loc);
+		if (iswdigit(c))
+			c = digittoint(c);
 		else
 #endif
 		if (c >= L'0' && c <= L'9')
@@ -124,11 +125,4 @@ noconv:
 	if (endptr != NULL)
 		*endptr = (wchar_t *)(any ? s - 1 : nptr);
 	return (acc);
-}
-
-intmax_t
-wcstoimax(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr,
-    int base)
-{
-	return wcstoimax_l(nptr, endptr, base, __current_locale());
 }

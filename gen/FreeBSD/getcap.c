@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,9 +38,7 @@
 static char sccsid[] = "@(#)getcap.c	8.3 (Berkeley) 3/25/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gen/getcap.c,v 1.23 2009/11/25 04:45:45 wollman Exp $");
-
-#include "xlocale_private.h"
+__FBSDID("$FreeBSD: src/lib/libc/gen/getcap.c,v 1.19 2003/01/02 10:19:43 thomas Exp $");
 
 #include "namespace.h"
 #include <sys/types.h>
@@ -68,7 +70,7 @@ static char	*toprec;	/* Additional record specified by cgetset() */
 static int	 gottoprec;	/* Flag indicating retrieval of toprecord */
 
 static int	cdbget(DB *, char **, const char *);
-static int 	getent(char **, u_int *, char **, int, const char *, int, char *, locale_t);
+static int 	getent(char **, u_int *, char **, int, const char *, int, char *);
 static int	nfcmp(char *, char *);
 
 /*
@@ -164,7 +166,7 @@ cgetent(char **buf, char **db_array, const char *name)
 {
 	u_int dummy;
 
-	return (getent(buf, &dummy, db_array, -1, name, 0, NULL, __current_locale()));
+	return (getent(buf, &dummy, db_array, -1, name, 0, NULL));
 }
 
 /*
@@ -187,11 +189,11 @@ cgetent(char **buf, char **db_array, const char *name)
  */
 static int
 getent(char **cap, u_int *len, char **db_array, int fd, const char *name,
-    int depth, char *nfield, locale_t loc)
+    int depth, char *nfield)
 {
 	DB *capdbp;
 	char *r_end, *rp, **db_p;
-	int myfd, eof, foundit, retval;
+	int myfd, eof, foundit, retval, clen;
 	char *record, *cbuf;
 	int tc_not_resolved;
 	char pbuf[_POSIX_PATH_MAX];
@@ -253,16 +255,14 @@ getent(char **cap, u_int *len, char **db_array, int fd, const char *name,
 					return (retval);
 				}
 				/* save the data; close frees it */
-				cbuf = strdup(record);
+				clen = strlen(record);
+				cbuf = malloc(clen + 1);
+				memcpy(cbuf, record, clen + 1);
 				if (capdbp->close(capdbp) < 0) {
 					free(cbuf);
 					return (-2);
 				}
-				if (cbuf == NULL) {
-					errno = ENOMEM;
-					return (-2);
-				}
-				*len = strlen(cbuf);
+				*len = clen;
 				*cap = cbuf;
 				return (retval);
 			} else {
@@ -428,7 +428,7 @@ tc_exp:	{
 			tcend = s;
 
 			iret = getent(&icap, &ilen, db_p, fd, tc, depth+1,
-				      NULL, loc);
+				      NULL);
 			newicap = icap;		/* Put into a register. */
 			newilen = ilen;
 			if (iret != 0) {
@@ -649,10 +649,9 @@ int
 cgetnext(char **bp, char **db_array)
 {
 	size_t len;
-	int done, hadreaderr, savederrno, status;
+	int done, hadreaderr, i, savederrno, status;
 	char *cp, *line, *rp, *np, buf[BSIZE], nbuf[BSIZE];
 	u_int dummy;
-	locale_t loc = __current_locale();
 
 	if (dbp == NULL)
 		dbp = db_array;
@@ -661,7 +660,7 @@ cgetnext(char **bp, char **db_array)
 		(void)cgetclose();
 		return (-1);
 	}
-	for (;;) {
+	for(;;) {
 		if (toprec && !gottoprec) {
 			gottoprec = 1;
 			line = toprec;
@@ -694,7 +693,7 @@ cgetnext(char **bp, char **db_array)
 				slash = 0;
 				continue;
 			}
-			if (isspace_l((unsigned char)*line, loc) ||
+			if (isspace((unsigned char)*line) ||
 			    *line == ':' || *line == '#' || slash) {
 				if (line[len - 2] == '\\')
 					slash = 1;
@@ -712,6 +711,7 @@ cgetnext(char **bp, char **db_array)
 		/*
 		 * Line points to a name line.
 		 */
+		i = 0;
 		done = 0;
 		np = nbuf;
 		for (;;) {
@@ -765,7 +765,7 @@ cgetnext(char **bp, char **db_array)
 		 * rather than the duplicate entry record.  This is a
 		 * matter of semantics that should be resolved.
 		 */
-		status = getent(bp, &dummy, db_array, -1, buf, 0, NULL, loc);
+		status = getent(bp, &dummy, db_array, -1, buf, 0, NULL);
 		if (status == -2 || status == -3)
 			(void)cgetclose();
 

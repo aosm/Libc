@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,9 +38,7 @@ static char sccsid[] = "@(#)strtoq.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 __FBSDID("FreeBSD: src/lib/libc/stdlib/strtoll.c,v 1.19 2002/09/06 11:23:59 tjr Exp ");
 #endif
-__FBSDID("$FreeBSD: src/lib/libc/locale/wcstoll.c,v 1.2 2007/01/09 00:28:01 imp Exp $");
-
-#include "xlocale_private.h"
+__FBSDID("$FreeBSD: src/lib/libc/locale/wcstoll.c,v 1.1 2002/09/22 08:06:45 tjr Exp $");
 
 #include <errno.h>
 #include <limits.h>
@@ -48,8 +50,7 @@ __FBSDID("$FreeBSD: src/lib/libc/locale/wcstoll.c,v 1.2 2007/01/09 00:28:01 imp 
  * Convert a wide character string to a long long integer.
  */
 long long
-wcstoll_l(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr,
-    int base, locale_t loc)
+wcstoll(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr, int base)
 {
 	const wchar_t *s;
 	unsigned long long acc;
@@ -57,14 +58,13 @@ wcstoll_l(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr,
 	unsigned long long cutoff;
 	int neg, any, cutlim;
 
-	NORMALIZE_LOCALE(loc);
 	/*
 	 * See strtoll for comments as to the logic used.
 	 */
 	s = nptr;
 	do {
 		c = *s++;
-	} while (iswspace_l(c, loc));
+	} while (iswspace(c));
 	if (c == L'-') {
 		neg = 1;
 		c = *s++;
@@ -91,8 +91,8 @@ wcstoll_l(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr,
 	cutoff /= base;
 	for ( ; ; c = *s++) {
 #ifdef notyet
-		if (iswdigit_l(c, loc))
-			c = digittoint_l(c, loc);
+		if (iswdigit(c))
+			c = digittoint(c);
 		else
 #endif
 		if (c >= L'0' && c <= L'9')
@@ -124,10 +124,4 @@ noconv:
 	if (endptr != NULL)
 		*endptr = (wchar_t *)(any ? s - 1 : nptr);
 	return (acc);
-}
-
-long long
-wcstoll(const wchar_t * __restrict nptr, wchar_t ** __restrict endptr, int base)
-{
-	return wcstoll_l(nptr, endptr, base, __current_locale());
 }

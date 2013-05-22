@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD: src/lib/libc/stdio/putwchar.c,v 1.3 2004/05/25 10:42:52 tjr Exp $");
 
-#include "xlocale_private.h"
-
 #include "namespace.h"
 #include <stdio.h>
 #include <wchar.h>
@@ -45,13 +43,5 @@ wint_t
 putwchar(wchar_t wc)
 {
 
-	return (fputwc_l(wc, stdout, __current_locale()));
-}
-
-wint_t
-putwchar_l(wchar_t wc, locale_t loc)
-{
-
-	/* no need to call NORMALIZE_LOCALE(loc) because fputwc_l will */
-	return (fputwc_l(wc, stdout, loc));
+	return (fputwc(wc, stdout));
 }

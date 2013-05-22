@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -27,16 +31,11 @@
  * SUCH DAMAGE.
  */
 
-#ifdef VARIANT_CANCELABLE
-#undef __DARWIN_NON_CANCELABLE
-#define __DARWIN_NON_CANCELABLE 0
-#endif /* VARIANT_CANCELABLE */
-
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)usleep.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gen/usleep.c,v 1.31 2009/12/05 19:31:38 ed Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/gen/usleep.c,v 1.28 2002/12/29 00:59:09 mike Exp $");
 
 #include "namespace.h"
 #include <time.h>
@@ -44,7 +43,8 @@ __FBSDID("$FreeBSD: src/lib/libc/gen/usleep.c,v 1.31 2009/12/05 19:31:38 ed Exp 
 #include "un-namespace.h"
 
 int
-usleep(useconds_t useconds)
+usleep(useconds)
+	useconds_t useconds;
 {
 	struct timespec time_to_sleep;
 

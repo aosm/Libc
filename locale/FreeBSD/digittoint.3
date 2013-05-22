@@ -9,6 +9,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -26,44 +30,26 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)digittoint.3	8.1 (Berkeley) 6/4/93
-.\" $FreeBSD: src/lib/libc/locale/digittoint.3,v 1.6 2009/09/04 07:44:58 des Exp $
+.\" $FreeBSD: src/lib/libc/locale/digittoint.3,v 1.3 2004/03/30 07:19:35 tjr Exp $
 .\"
 .Dd April 6, 2001
 .Dt DIGITTOINT 3
 .Os
 .Sh NAME
-.Nm digittoint ,
-.Nm digittoint_l
+.Nm digittoint
 .Nd convert a numeric character to its integer value
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In ctype.h
 .Ft int
-.Fo digittoint
-.Fa "int c"
-.Fc
-.In xlocale.h
-.In ctype.h
-.Ft int
-.Fo digittoint_l
-.Fa "int c"
-.Fa "locale_t loc"
-.Fc
+.Fn digittoint "int c"
 .Sh DESCRIPTION
 The
 .Fn digittoint
 function converts a numeric character to its corresponding integer value.
 The character can be any decimal digit or hexadecimal digit.
 With hexadecimal characters, the case of the values does not matter.
-.Pp
-While the
-.Fn digittoint
-function uses the current locale, the
-.Fn digittoint_l
-function may be passed a locale directly. See
-.Xr xlocale 3
-for more information.
 .Sh RETURN VALUES
 The
 .Fn digittoint
@@ -74,5 +60,4 @@ the function will return 0.
 .Sh SEE ALSO
 .Xr ctype 3 ,
 .Xr isdigit 3 ,
-.Xr isxdigit 3 ,
-.Xr xlocale 3
+.Xr isxdigit 3

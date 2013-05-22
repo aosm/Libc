@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2008 Apple Inc. All rights reserved.
+ * Copyright (c) 1999 Apple Computer, Inc. All rights reserved.
  *
  * @APPLE_LICENSE_HEADER_START@
  * 
@@ -137,27 +137,20 @@ _cproc_fork_child()
 #undef errno
 extern int errno;
 extern int *__error(void);
-extern int __pthread_canceled(int);
 
 void
-cthread_set_errno_self(int error, int nocancel)
+cthread_set_errno_self(error)
+	int	error;
 {
 	int *ep = __error();
 	extern int __unix_conforming;
-	pthread_t self = NULL;
-	int check_cancel = __unix_conforming && !nocancel;
 
-	if (check_cancel && ((error & 0xff) == EINTR) && (__pthread_canceled(0) == 0)) {
-		self = pthread_self();
-		if (self != NULL)
-			self->cancel_error = error;
+	if ((__unix_conforming) && (error == EINTR) && (__pthread_canceled(0) == 0))
 		pthread_exit(PTHREAD_CANCELED);
-	}
 
-	if (ep != &errno) {
-		*ep = error;
-	}
+        if (ep != &errno)
+            *ep = error;
 
-	errno = error;
+        errno = error;
 }
 

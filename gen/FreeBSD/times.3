@@ -43,9 +43,7 @@
 .Sh SYNOPSIS
 .In sys/times.h
 .Ft clock_t
-.Fo times
-.Fa "struct tms *buffer"
-.Fc
+.Fn times "struct tms *tp"
 .Sh DESCRIPTION
 .Bf -symbolic
 This interface is obsoleted by
@@ -63,7 +61,7 @@ of a second since
 Time.
 .Pp
 It also fills in the structure pointed to by
-.Fa buffer
+.Fa tp
 with time-accounting information.
 .Pp
 The

@@ -11,6 +11,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -28,7 +32,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)ctime.3	8.1 (Berkeley) 6/4/93
-.\" $FreeBSD: src/lib/libc/stdtime/ctime.3,v 1.24 2007/01/09 00:28:11 imp Exp $
+.\" $FreeBSD: src/lib/libc/stdtime/ctime.3,v 1.22 2004/07/02 23:52:12 ru Exp $
 .\"
 .Dd January 2, 1999
 .Dt CTIME 3
@@ -52,31 +56,31 @@
 .In time.h
 .Vt extern char *tzname[2] ;
 .Ft char *
-.Fn asctime "const struct tm *timeptr"
-.Ft char *
-.Fn asctime_r "const struct tm *restrict timeptr" "char *restrict buf"
-.Ft char *
 .Fn ctime "const time_t *clock"
-.Ft char *
-.Fn ctime_r "const time_t *clock" "char *buf"
 .Ft double
 .Fn difftime "time_t time1" "time_t time0"
-.Ft struct tm *
-.Fn gmtime "const time_t *clock"
-.Ft struct tm *
-.Fn gmtime_r "const time_t *clock" "struct tm *result"
+.Ft char *
+.Fn asctime "const struct tm *tm"
 .Ft struct tm *
 .Fn localtime "const time_t *clock"
 .Ft struct tm *
+.Fn gmtime "const time_t *clock"
+.Ft time_t
+.Fn mktime "struct tm *tm"
+.Ft time_t
+.Fn timegm "struct tm *tm"
+.Ft char *
+.Fn ctime_r "const time_t *clock" "char *buf"
+.Ft struct tm *
 .Fn localtime_r "const time_t *clock" "struct tm *result"
-.Ft time_t
-.Fn mktime "struct tm *timeptr"
-.Ft time_t
-.Fn timegm "struct tm *timeptr"
+.Ft struct tm *
+.Fn gmtime_r "const time_t *clock" "struct tm *result"
+.Ft char *
+.Fn asctime_r "const struct tm *tm" "char *buf"
 .Sh DESCRIPTION
 The functions
 .Fn ctime ,
-.Fn gmtime ,
+.Fn gmtime
 and
 .Fn localtime
 all take as an argument a time value representing the time in seconds since
@@ -88,10 +92,10 @@ January 1, 1970; see
 The function
 .Fn localtime
 converts the time value pointed at by
-.Fa clock .
-It returns a pointer to a
+.Fa clock ,
+and returns a pointer to a
 .Dq Fa struct tm
-(described below), which contains
+(described below) which contains
 the broken-out time information for the value after adjusting for the current
 time zone (and any other factors such as Daylight Saving Time).
 Time zone adjustments are performed as specified by the
@@ -102,7 +106,7 @@ The function
 .Fn localtime
 uses
 .Xr tzset 3
-to initialize time conversion information, if
+to initialize time conversion information if
 .Xr tzset 3
 has not already been called by the process.
 .Pp
@@ -114,36 +118,36 @@ element of
 .Fa tzname
 to a pointer to an
 .Tn ASCII
-string containing the time zone abbreviation to be
+string that's the time zone abbreviation to be
 used with
 .Fn localtime Ns 's
 return value.
 .Pp
 The function
 .Fn gmtime
-also converts the time value, but makes no time zone adjustment.
-It returns a pointer to a tm structure (described below).
+similarly converts the time value, but without any time zone adjustment,
+and returns a pointer to a tm structure (described below).
 .Pp
 The
 .Fn ctime
 function
-adjusts the time value for the current time zone, in the same manner as
-.Fn localtime .
-It returns a pointer to a 26-character string of the form:
+adjusts the time value for the current time zone in the same manner as
+.Fn localtime ,
+and returns a pointer to a 26-character string of the form:
 .Bd -literal -offset indent
 Thu Nov 24 18:22:48 1986\en\e0
 .Ed
 .Pp
-All of the fields have constant width.
+All the fields have constant width.
 .Pp
 The
 .Fn ctime_r
 function
 provides the same functionality as
-.Fn ctime ,
-except that the caller must provide the output buffer
+.Fn ctime
+except the caller must provide the output buffer
 .Fa buf
-(which must be at least 26 characters long) to store the result.
+to store the result, which must be at least 26 characters long.
 The
 .Fn localtime_r
 and
@@ -152,17 +156,17 @@ functions
 provide the same functionality as
 .Fn localtime
 and
-.Fn gmtime ,
+.Fn gmtime
 respectively, except the caller must provide the output buffer
 .Fa result .
 .Pp
 The
 .Fn asctime
 function
-converts the broken-out time in the structure
+converts the broken down time in the structure
 .Fa tm
-(pointed at by
-.Fa *timeptr )
+pointed at by
+.Fa *tm
 to the form
 shown in the example above.
 .Pp
@@ -170,19 +174,17 @@ The
 .Fn asctime_r
 function
 provides the same functionality as
-.Fn asctime ,
-except that the caller provides the output buffer
+.Fn asctime
+except the caller provide the output buffer
 .Fa buf
-(which must be at least 26 characters long) to store the result.
+to store the result, which must be at least 26 characters long.
 .Pp
 The functions
 .Fn mktime
 and
 .Fn timegm
-convert the broken-out time
-(in the structure pointed to by
-.Fa *timeptr )
-into a time value with the same encoding as that of the
+convert the broken-down time in the structure
+pointed to by tm into a time value with the same encoding as that of the
 values returned by the
 .Xr time 3
 function (that is, seconds from the Epoch,
@@ -195,17 +197,17 @@ interprets the input structure according to the current timezone setting
 .Xr tzset 3 ) .
 The
 .Fn timegm
-function interprets the input structure
-as representing Universal Coordinated Time
+function
+interprets the input structure as representing Universal Coordinated Time
 .Pq Tn UTC .
 .Pp
 The original values of the
 .Fa tm_wday
 and
 .Fa tm_yday
-components of the structure are ignored. The original values of the
-other components are not restricted to their normal ranges and will be
-normalized, if need be.
+components of the structure are ignored, and the original values of the
+other components are not restricted to their normal ranges, and will be
+normalized if needed.
 For example,
 October 40 is changed into November 9,
 a
@@ -221,7 +223,7 @@ of \-2 means 2 months before January of
 causes
 .Fn mktime
 to presume initially that summer time (for example, Daylight Saving Time)
-is or is not (respectively) in effect for the specified time.
+is or is not in effect for the specified time, respectively.
 A negative value for
 .Fa tm_isdst
 causes the
@@ -263,8 +265,7 @@ returns the difference between two calendar times,
 .Fa time0 ) ,
 expressed in seconds.
 .Pp
-External declarations, as well as the tm structure definition,
-are contained in the
+External declarations as well as the tm structure definition are in the
 .In time.h
 include file.
 The tm structure includes at least the following fields:
@@ -285,14 +286,14 @@ long tm_gmtoff;	/\(** offset from UTC in seconds \(**/
 The
 field
 .Fa tm_isdst
-is non-zero if summer (i.e., Daylight Saving) time is in effect.
+is non-zero if summer time is in effect.
 .Pp
 The field
 .Fa tm_gmtoff
 is the offset (in seconds) of the time represented from
 .Tn UTC ,
 with positive
-values indicating locations east of the Prime Meridian.
+values indicating east of the Prime Meridian.
 .Sh SEE ALSO
 .Xr date 1 ,
 .Xr gettimeofday 2 ,

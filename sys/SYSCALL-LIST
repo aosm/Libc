@@ -57,6 +57,7 @@ geteuid
 ioctl
 kill
 killpg
+ktrace
 link
 listen
 lseek
@@ -143,6 +144,5 @@ wait
 waitpid
 wait3
 wait4
-waitid
 write
 writev

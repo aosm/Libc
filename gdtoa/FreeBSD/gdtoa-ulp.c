@@ -34,13 +34,13 @@ THIS SOFTWARE.
  double
 ulp
 #ifdef KR_headers
-	(x) U *x;
+	(x) double x;
 #else
-	(U *x)
+	(double x)
 #endif
 {
 	Long L;
-	U a;
+	double a;
 
 	L = (word0(x) & Exp_mask) - (P-1)*Exp_msk1;
 #ifndef Sudden_Underflow
@@ -49,22 +49,22 @@ ulp
 #ifdef IBM
 		L |= Exp_msk1 >> 4;
 #endif
-		word0(&a) = L;
-		word1(&a) = 0;
+		word0(a) = L;
+		word1(a) = 0;
 #ifndef Sudden_Underflow
 		}
 	else {
 		L = -L >> Exp_shift;
 		if (L < Exp_shift) {
-			word0(&a) = 0x80000 >> L;
-			word1(&a) = 0;
+			word0(a) = 0x80000 >> L;
+			word1(a) = 0;
 			}
 		else {
-			word0(&a) = 0;
+			word0(a) = 0;
 			L -= Exp_shift;
-			word1(&a) = L >= 31 ? 1 : 1 << (31 - L);
+			word1(a) = L >= 31 ? 1 : 1 << 31 - L;
 			}
 		}
 #endif
-	return dval(&a);
+	return a;
 	}

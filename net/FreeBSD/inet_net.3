@@ -14,6 +14,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"        This product includes software developed by the NetBSD
+.\"        Foundation, Inc. and its contributors.
 .\" 4. Neither the name of The NetBSD Foundation nor the names of its
 .\"    contributors may be used to endorse or promote products derived
 .\"    from this software without specific prior written permission.
@@ -30,9 +34,9 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $FreeBSD: src/lib/libc/net/inet_net.3,v 1.4 2007/01/09 00:28:02 imp Exp $
+.\" $FreeBSD: src/lib/libc/net/inet_net.3,v 1.2 2002/12/19 09:40:22 ru Exp $
 .\"
-.Dd February 26, 2006
+.Dd June 18, 1997
 .Dt INET_NET 3
 .Os
 .Sh NAME
@@ -42,6 +46,9 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In netinet/in.h
 .In arpa/inet.h
 .Ft char *
 .Fn inet_net_ntop "int af" "const void *src" "int bits" "char *dst" "size_t size"
@@ -81,12 +88,10 @@ It will be set to
 .Er ENOENT
 if the Internet network number was not valid).
 .Pp
-The currently supported values for
+The only value for
 .Fa af
-are
-.Dv AF_INET
-and
-.Dv AF_INET6 .
+currently supported is
+.Dv AF_INET .
 The
 .Fa size
 argument
@@ -144,17 +149,6 @@ may be decimal, octal, or hexadecimal, as specified
 in the C language (i.e., a leading 0x or 0X implies
 hexadecimal; otherwise, a leading 0 implies octal;
 otherwise, the number is interpreted as decimal).
-.\"
-.\" .Sh NETWORK NUMBERS (IP VERSION 6)
-.\" XXX - document this!
-.\"
-.Sh LEGACY SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/socket.h>
-.Fd #include <netinet/in.h>
-.Fd #include <arpa/inet.h>
-.Pp
-These include files were necessary for all functions.
 .Sh SEE ALSO
 .Xr byteorder 3 ,
 .Xr inet 3 ,

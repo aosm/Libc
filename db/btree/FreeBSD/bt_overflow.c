@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,7 +38,7 @@
 static char sccsid[] = "@(#)bt_overflow.c	8.5 (Berkeley) 7/16/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/db/btree/bt_overflow.c,v 1.6 2009/03/05 00:57:01 delphij Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/db/btree/bt_overflow.c,v 1.3 2002/03/22 21:52:01 obrien Exp $");
 
 #include <sys/param.h>
 
@@ -75,7 +79,12 @@ __FBSDID("$FreeBSD: src/lib/libc/db/btree/bt_overflow.c,v 1.6 2009/03/05 00:57:0
  *	RET_ERROR, RET_SUCCESS
  */
 int
-__ovfl_get(BTREE *t, void *p, size_t *ssz, void **buf, size_t *bufsz)
+__ovfl_get(t, p, ssz, buf, bufsz)
+	BTREE *t;
+	void *p;
+	size_t *ssz;
+	void **buf;
+	size_t *bufsz;
 {
 	PAGE *h;
 	pgno_t pg;
@@ -88,11 +97,11 @@ __ovfl_get(BTREE *t, void *p, size_t *ssz, void **buf, size_t *bufsz)
 
 #ifdef DEBUG
 	if (pg == P_INVALID || sz == 0)
-		LIBC_ABORT("%s", pg == P_INVALID ? "pg == P_INVALID" : "sz == 0");
+		abort();
 #endif
 	/* Make the buffer bigger as necessary. */
 	if (*bufsz < sz) {
-		*buf = reallocf(*buf, sz);
+		*buf = (char *)(*buf == NULL ? malloc(sz) : reallocf(*buf, sz));
 		if (*buf == NULL)
 			return (RET_ERROR);
 		*bufsz = sz;
@@ -129,7 +138,10 @@ __ovfl_get(BTREE *t, void *p, size_t *ssz, void **buf, size_t *bufsz)
  *	RET_ERROR, RET_SUCCESS
  */
 int
-__ovfl_put(BTREE *t, const DBT *dbt, pgno_t *pg)
+__ovfl_put(t, dbt, pg)
+	BTREE *t;
+	const DBT *dbt;
+	pgno_t *pg;
 {
 	PAGE *h, *last;
 	void *p;
@@ -180,7 +192,9 @@ __ovfl_put(BTREE *t, const DBT *dbt, pgno_t *pg)
  *	RET_ERROR, RET_SUCCESS
  */
 int
-__ovfl_delete(BTREE *t, void *p)
+__ovfl_delete(t, p)
+	BTREE *t;
+	void *p;
 {
 	PAGE *h;
 	pgno_t pg;
@@ -192,7 +206,7 @@ __ovfl_delete(BTREE *t, void *p)
 
 #ifdef DEBUG
 	if (pg == P_INVALID || sz == 0)
-		LIBC_ABORT("%s", pg == P_INVALID ? "pg == P_INVALID" : "sz == 0");
+		abort();
 #endif
 	if ((h = mpool_get(t->bt_mp, pg, 0)) == NULL)
 		return (RET_ERROR);

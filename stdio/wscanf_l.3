@@ -41,12 +41,12 @@
 .Dt WSCANF_L 3
 .Os
 .Sh NAME
+.Nm wscanf_l ,
 .Nm fwscanf_l ,
 .Nm swscanf_l ,
-.Nm vfwscanf_l ,
-.Nm vswscanf_l ,
 .Nm vwscanf_l ,
-.Nm wscanf_l
+.Nm vswscanf_l ,
+.Nm vfwscanf_l
 .Nd wide character input format conversion
 .Sh LIBRARY
 .Lb libc
@@ -55,47 +55,18 @@
 .In wchar.h
 .In xlocale.h
 .Ft int
-.Fo fwscanf_l
-.Fa "FILE * restrict stream"
-.Fa "locale_t loc"
-.Fa "const wchar_t * restrict format"
-.Fa ...
-.Fc
+.Fn wscanf_l "locale_t loc" "const wchar_t * restrict format" ...
 .Ft int
-.Fo swscanf_l
-.Fa "const wchar_t * restrict str"
-.Fa "locale_t loc"
-.Fa "const wchar_t * restrict format"
-.Fa ...
-.Fc
+.Fn fwscanf_l "FILE * restrict stream" "locale_t loc" "const wchar_t * restrict format" ...
 .Ft int
-.Fo wscanf_l
-.Fa "locale_t loc"
-.Fa "const wchar_t * restrict format"
-.Fa ...
-.Fc
+.Fn swscanf_l "const wchar_t * restrict str" "locale_t loc" "const wchar_t * restrict format" ...
 .In stdarg.h
-.In xlocale.h
 .Ft int
-.Fo vfwscanf_l
-.Fa "FILE * restrict stream"
-.Fa "locale_t loc"
-.Fa "const wchar_t * restrict format"
-.Fa "va_list ap"
-.Fc
+.Fn vwscanf_l "locale_t loc" "const wchar_t * restrict format" "va_list ap"
 .Ft int
-.Fo vswscanf_l
-.Fa "const wchar_t * restrict str"
-.Fa "locale_t loc"
-.Fa "const wchar_t * restrict format"
-.Fa "va_list ap"
-.Fc
+.Fn vswscanf_l "const wchar_t * restrict str" "locale_t loc" "const wchar_t * restrict format" "va_list ap"
 .Ft int
-.Fo vwscanf_l
-.Fa "locale_t loc"
-.Fa "const wchar_t * restrict format"
-.Fa "va_list ap"
-.Fc
+.Fn vfwscanf_l "FILE * restrict stream" "locale_t loc" "const wchar_t * restrict format" "va_list ap"
 .Sh DESCRIPTION
 The
 .Fn wscanf_l ,

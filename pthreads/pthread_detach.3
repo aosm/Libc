@@ -39,9 +39,7 @@
 .Sh SYNOPSIS
 .Fd #include <pthread.h>
 .Ft int
-.Fo pthread_detach
-.Fa "pthread_t thread"
-.Fc
+.Fn pthread_detach "pthread_t thread"
 .Sh DESCRIPTION
 The
 .Fn pthread_detach
@@ -61,10 +59,10 @@ calls on the same target thread is unspecified.
 If successful,  the
 .Fn pthread_detach
 function will return zero.
-Otherwise, an error number will be returned to
+Otherwise an error number will be returned to
 indicate the error.
 Note that the function does not change the value
-of errno, as it did for some drafts of the standard.
+of errno as it did for some drafts of the standard.
 These early drafts
 also passed a pointer to pthread_t as the argument.
 Beware!

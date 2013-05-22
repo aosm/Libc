@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,7 +38,7 @@
 static char sccsid[] = "@(#)bt_put.c	8.8 (Berkeley) 7/26/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/db/btree/bt_put.c,v 1.9 2009/03/28 05:45:29 delphij Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/db/btree/bt_put.c,v 1.4 2003/05/30 11:05:08 tmm Exp $");
 
 #include <sys/types.h>
 
@@ -62,13 +66,17 @@ static EPG *bt_fast(BTREE *, const DBT *, const DBT *, int *);
  *	tree and R_NOOVERWRITE specified.
  */
 int
-__bt_put(const DB *dbp, DBT *key, const DBT *data, u_int flags)
+__bt_put(dbp, key, data, flags)
+	const DB *dbp;
+	DBT *key;
+	const DBT *data;
+	u_int flags;
 {
 	BTREE *t;
 	DBT tkey, tdata;
 	EPG *e;
 	PAGE *h;
-	indx_t idx, nxtindex;
+	indx_t index, nxtindex;
 	pgno_t pg;
 	u_int32_t nbytes, tmp;
 	int dflags, exact, status;
@@ -99,7 +107,7 @@ __bt_put(const DB *dbp, DBT *key, const DBT *data, u_int flags)
 		 */
 		if (F_ISSET(&t->bt_cursor, CURS_INIT) &&
 		    !F_ISSET(&t->bt_cursor,
-			CURS_ACQUIRE | CURS_AFTER | CURS_BEFORE))
+		        CURS_ACQUIRE | CURS_AFTER | CURS_BEFORE))
 			break;
 		/* FALLTHROUGH */
 	default:
@@ -149,7 +157,7 @@ storekey:		if (__ovfl_put(t, key, &pg) == RET_ERROR)
 	if (flags == R_CURSOR) {
 		if ((h = mpool_get(t->bt_mp, t->bt_cursor.pg.pgno, 0)) == NULL)
 			return (RET_ERROR);
-		idx = t->bt_cursor.pg.index;
+		index = t->bt_cursor.pg.index;
 		goto delete;
 	}
 
@@ -161,7 +169,7 @@ storekey:		if (__ovfl_put(t, key, &pg) == RET_ERROR)
 		if ((e = __bt_search(t, key, &exact)) == NULL)
 			return (RET_ERROR);
 	h = e->page;
-	idx = e->index;
+	index = e->index;
 
 	/*
 	 * Add the key/data pair to the tree.  If an identical key is already
@@ -183,7 +191,7 @@ storekey:		if (__ovfl_put(t, key, &pg) == RET_ERROR)
 		 * Note, the delete may empty the page, so we need to put a
 		 * new entry into the page immediately.
 		 */
-delete:		if (__bt_dleaf(t, key, h, idx) == RET_ERROR) {
+delete:		if (__bt_dleaf(t, key, h, index) == RET_ERROR) {
 			mpool_put(t->bt_mp, h, 0);
 			return (RET_ERROR);
 		}
@@ -197,37 +205,37 @@ delete:		if (__bt_dleaf(t, key, h, idx) == RET_ERROR) {
 	 * into the offset array, shift the pointers up.
 	 */
 	nbytes = NBLEAFDBT(key->size, data->size);
-	if ((u_int32_t)(h->upper - h->lower) < nbytes + sizeof(indx_t)) {
+	if (h->upper - h->lower < nbytes + sizeof(indx_t)) {
 		if ((status = __bt_split(t, h, key,
-		    data, dflags, nbytes, idx)) != RET_SUCCESS)
+		    data, dflags, nbytes, index)) != RET_SUCCESS)
 			return (status);
 		goto success;
 	}
 
-	if (idx < (nxtindex = NEXTINDEX(h)))
-		memmove(h->linp + idx + 1, h->linp + idx,
-		    (nxtindex - idx) * sizeof(indx_t));
+	if (index < (nxtindex = NEXTINDEX(h)))
+		memmove(h->linp + index + 1, h->linp + index,
+		    (nxtindex - index) * sizeof(indx_t));
 	h->lower += sizeof(indx_t);
 
-	h->linp[idx] = h->upper -= nbytes;
+	h->linp[index] = h->upper -= nbytes;
 	dest = (char *)h + h->upper;
 	WR_BLEAF(dest, key, data, dflags);
 
 	/* If the cursor is on this page, adjust it as necessary. */
 	if (F_ISSET(&t->bt_cursor, CURS_INIT) &&
 	    !F_ISSET(&t->bt_cursor, CURS_ACQUIRE) &&
-	    t->bt_cursor.pg.pgno == h->pgno && t->bt_cursor.pg.index >= idx)
+	    t->bt_cursor.pg.pgno == h->pgno && t->bt_cursor.pg.index >= index)
 		++t->bt_cursor.pg.index;
 
 	if (t->bt_order == NOT) {
 		if (h->nextpg == P_INVALID) {
-			if (idx == NEXTINDEX(h) - 1) {
+			if (index == NEXTINDEX(h) - 1) {
 				t->bt_order = FORWARD;
-				t->bt_last.index = idx;
+				t->bt_last.index = index;
 				t->bt_last.pgno = h->pgno;
 			}
 		} else if (h->prevpg == P_INVALID) {
-			if (idx == 0) {
+			if (index == 0) {
 				t->bt_order = BACK;
 				t->bt_last.index = 0;
 				t->bt_last.pgno = h->pgno;
@@ -257,10 +265,13 @@ u_long bt_cache_hit, bt_cache_miss;
  *	key:	key to insert
  *
  * Returns:
- *	EPG for new record or NULL if not found.
+ * 	EPG for new record or NULL if not found.
  */
 static EPG *
-bt_fast(BTREE *t, const DBT *key, const DBT *data, int *exactp)
+bt_fast(t, key, data, exactp)
+	BTREE *t;
+	const DBT *key, *data;
+	int *exactp;
 {
 	PAGE *h;
 	u_int32_t nbytes;
@@ -278,7 +289,7 @@ bt_fast(BTREE *t, const DBT *key, const DBT *data, int *exactp)
 	 * have to search to get split stack.
 	 */
 	nbytes = NBLEAFDBT(key->size, data->size);
-	if ((u_int32_t)(h->upper - h->lower) < nbytes + sizeof(indx_t))
+	if (h->upper - h->lower < nbytes + sizeof(indx_t))
 		goto miss;
 
 	if (t->bt_order == FORWARD) {

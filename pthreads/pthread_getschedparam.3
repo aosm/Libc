@@ -30,29 +30,21 @@
 .Dt PTHREAD_SCHEDPARAM 3
 .Os
 .Sh NAME
-.Nm pthread_getschedparam ,
-.Nm pthread_setschedparam
+.Nm pthread_setschedparam ,
+.Nm pthread_getschedparam
 .Nd thread scheduling parameter manipulation
 .Sh SYNOPSIS
 .Fd #include <pthread.h>
 .Ft int
-.Fo pthread_getschedparam
-.Fa "pthread_t thread"
-.Fa "int *restrict policy"
-.Fa "struct sched_param *restrict param"
-.Fc
+.Fn pthread_setschedparam "pthread_t thread" "int policy" "const struct sched_param *param"
 .Ft int
-.Fo pthread_setschedparam
-.Fa "pthread_t thread"
-.Fa "int policy"
-.Fa "const struct sched_param *param"
-.Fc
+.Fn pthread_getschedparam "pthread_t thread" "int *policy" "struct sched_param *param"
 .Sh DESCRIPTION
 The
-.Fn pthread_getschedparam
-and
 .Fn pthread_setschedparam
-functions get and set the scheduling parameters of individual threads.
+and
+.Fn pthread_getschedparam
+functions set and get the scheduling parameters of individual threads.
 The scheduling policy for a thread can either be
 .Dv SCHED_FIFO
 (first in, first out) or
@@ -68,14 +60,6 @@ and no more than
 If successful, these functions return 0.
 Otherwise, an error number is returned to indicate the error.
 .Sh ERRORS
-.Fn pthread_getschedparam
-will fail if:
-.Bl -tag -width Er
-.It Bq Er ESRCH
-Non-existent thread
-.Va thread .
-.El
-.Pp
 .Fn pthread_setschedparam
 will fail if:
 .Bl -tag -width Er
@@ -84,6 +68,14 @@ Invalid value for
 .Va policy .
 .It Bq Er ENOTSUP
 Invalid value for scheduling parameters.
+.It Bq Er ESRCH
+Non-existent thread
+.Va thread .
+.El
+.Pp
+.Fn pthread_getschedparam
+will fail if:
+.Bl -tag -width Er
 .It Bq Er ESRCH
 Non-existent thread
 .Va thread .

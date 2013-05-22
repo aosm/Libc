@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -31,14 +35,13 @@
 static char sccsid[] = "@(#)getenv.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdlib/getenv.c,v 1.8 2007/05/01 16:02:41 ache Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/getenv.c,v 1.4 2002/03/21 22:48:41 obrien Exp $");
 
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
-#include <crt_externs.h>
 
-__private_extern__ char *__findenv(const char *, int *, char **);
+inline char *__findenv(const char *, int *);
 
 /*
  * __findenv --
@@ -49,12 +52,12 @@ __private_extern__ char *__findenv(const char *, int *, char **);
  *
  *	This routine *should* be a static; don't use it.
  */
-__private_extern__ char *
-__findenv(name, offset, environ)
+inline char *
+__findenv(name, offset)
 	const char *name;
 	int *offset;
-	char **environ;
 {
+	extern char **environ;
 	int len, i;
 	const char *np;
 	char **p, *cp;
@@ -77,19 +80,6 @@ __findenv(name, offset, environ)
 }
 
 /*
- * _getenvp -- SPI using an arbitrary pointer to string array (the array must
- * have been created with malloc) and an env state, created by _allocenvstate().
- *	Returns ptr to value associated with name, if any, else NULL.
- */
-char *
-_getenvp(const char *name, char ***envp, void *state __unused)
-{
-	int offset;
-
-	return (__findenv(name, &offset, *envp));
-}
-
-/*
  * getenv --
  *	Returns ptr to value associated with name, if any, else NULL.
  */
@@ -99,5 +89,5 @@ getenv(name)
 {
 	int offset;
 
-	return (__findenv(name, &offset, *_NSGetEnviron()));
+	return (__findenv(name, &offset));
 }

@@ -13,9 +13,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD: src/lib/libc/db/man/dbm.3,v 1.10 2009/01/30 15:28:35 gabor Exp $
+.\" $FreeBSD: src/lib/libc/db/man/dbm.3,v 1.8 2003/09/08 19:57:13 ru Exp $
 .\"
-.Dd April 16, 2006
+.\" Note: The date here should be updated whenever a non-trivial
+.\" change is made to the manual page.
+.Dd July 7, 1999
 .Dt DBM 3
 .Os
 .Sh NAME
@@ -31,54 +33,28 @@
 .Nm dbm_store
 .Nd database access functions
 .Sh SYNOPSIS
+.In fcntl.h
 .In ndbm.h
-.Ft int
-.Fo dbm_clearerr
-.Fa "DBM *db"
-.Fc
-.Ft void
-.Fo dbm_close
-.Fa "DBM *db"
-.Fc
-.Ft int
-.Fo dbm_delete
-.Fa "DBM *db"
-.Fa "datum key"
-.Fc
-.Ft int
-.Fo dbm_dirfno
-.Fa "DBM *db"
-.Fc
-.Ft int
-.Fo dbm_error
-.Fa "DBM *db"
-.Fc
-.Ft datum
-.Fo dbm_fetch
-.Fa "DBM *db"
-.Fa "datum key"
-.Fc
-.Ft datum
-.Fo dbm_firstkey
-.Fa "DBM *db"
-.Fc
-.Ft datum
-.Fo dbm_nextkey
-.Fa "DBM *db"
-.Fc
 .Ft DBM *
-.Fo dbm_open
-.Fa "const char *file"
-.Fa "int open_flags"
-.Fa "mode_t file_mode"
-.Fc
+.Fn dbm_open "const char *base" "int flags" "int mode"
+.Ft void
+.Fn dbm_close "DBM *db"
 .Ft int
-.Fo dbm_store
-.Fa "DBM *db"
-.Fa "datum key"
-.Fa "datum content"
-.Fa "int store_mode"
-.Fc
+.Fn dbm_store "DBM *db" "datum key" "datum data" "int flags"
+.Ft datum
+.Fn dbm_fetch "DBM *db" "datum key"
+.Ft int
+.Fn dbm_delete "DBM *db" "datum key"
+.Ft datum
+.Fn dbm_firstkey "DBM *db"
+.Ft datum
+.Fn dbm_nextkey "DBM *db"
+.Ft int
+.Fn dbm_error "DBM *db"
+.Ft int
+.Fn dbm_clearerr "DBM *db"
+.Ft int
+.Fn dbm_dirfno "DBM *db"
 .Sh DESCRIPTION
 Database access functions.
 These functions are implemented using
@@ -98,38 +74,38 @@ typedef struct {
 .Ed
 .Pp
 The
-.Fn dbm_open file open_flags file_mode
+.Fn dbm_open base flags mode
 function
-opens or creates a database file.
+opens or creates a database.
 The
-.Fa file
+.Fa base
 argument
 is the basename of the file containing
 the database; the actual database has a
 .Pa .db
 suffix.
 I.e., if
-.Fa file
+.Fa base
 is
 .Qq Li /home/me/mystuff
 then the actual database is in the file
 .Pa /home/me/mystuff.db .
 The
-.Fa open_flags
+.Fa flags
 and
-.Fa file_mode
+.Fa mode
 arguments
 are passed to
 .Xr open 2 .
 .Pq Dv O_RDWR | O_CREAT
 is a typical value for
-.Fa open_flags ;
+.Fa flags ;
 .Li 0660
 is a typical value for
-.Fa file_mode .
+.Fa mode .
 .Dv O_WRONLY
 is not allowed in
-.Fa open_flags .
+.Fa flags .
 The pointer returned by
 .Fn dbm_open
 identifies the database and is the
@@ -148,20 +124,24 @@ The
 .Fn dbm_close db
 function
 closes the database.
+The
+.Fn dbm_close
+function
+normally returns zero.
 .Pp
 The
-.Fn dbm_store db key content store_mode
+.Fn dbm_store db key data flags
 function
 inserts or replaces an entry in the database.
 The
-.Fa store_mode
+.Fa flags
 argument
 is either
 .Dv DBM_INSERT
 or
 .Dv DBM_REPLACE .
 If
-.Fa store_mode
+.Fa flags
 is
 .Dv DBM_INSERT
 and the database already contains an entry for
@@ -173,7 +153,7 @@ The
 function
 normally returns zero but returns 1 if the entry could not be
 inserted (because
-.Fa store_mode
+.Fa flags
 is
 .Dv DBM_INSERT ,
 and an entry with
@@ -188,7 +168,7 @@ function
 returns
 .Dv NULL
 or the
-.Fa content
+.Fa data
 corresponding to
 .Fa key .
 .Pp
@@ -243,30 +223,10 @@ The
 .Fn dbm_dirfno db
 function
 returns the file descriptor to the database.
-.Sh LEGACY SYNOPSIS
-.Fd #include <fcntl.h>
-.Fd #include <ndbm.h>
-.Pp
-The include file
-.In ndbm.h
-is necessary for all functions.
-.Pp
-.Ft DBM *
-.br
-.Fo dbm_open
-.Fa "const char *file"
-.Fa "int open_flags"
-.Fa "int file_mode"
-.Fc ;
-.Pp
-.Fa file_mode
-has type
-.Vt int .
 .Sh SEE ALSO
 .Xr open 2 ,
 .Xr dbopen 3 ,
-.Xr hash 3 ,
-.Xr compat 5
+.Xr hash 3
 .Sh STANDARDS
 These functions (except
 .Fn dbm_dirfno )

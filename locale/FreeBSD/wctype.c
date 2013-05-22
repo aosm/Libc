@@ -25,20 +25,24 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/locale/wctype.c,v 1.4 2008/03/17 18:22:23 antoine Exp $");
-
-#include "xlocale_private.h"
+__FBSDID("$FreeBSD: src/lib/libc/locale/wctype.c,v 1.3 2004/03/27 08:59:21 tjr Exp $");
 
 #include <ctype.h>
 #include <string.h>
 #include <wctype.h>
-#include <limits.h>
+
+#undef iswctype
+int
+iswctype(wint_t wc, wctype_t charclass)
+{
+
+	return (__istype(wc, charclass));
+}
 
 wctype_t
-wctype_l(const char *property, locale_t loc)
+wctype(const char *property)
 {
-	_RuneLocale *rl;
-	static const struct {
+	struct {
 		const char	*name;
 		wctype_t	 mask;
 	} props[] = {
@@ -66,23 +70,5 @@ wctype_l(const char *property, locale_t loc)
 	while (props[i].name != NULL && strcmp(props[i].name, property) != 0)
 		i++;
 
-	if (props[i].mask)
-		return (props[i].mask);
-
-	NORMALIZE_LOCALE(loc);
-	rl = &loc->__lc_ctype->_CurrentRuneLocale;
-	if ((i = rl->__ncharclasses) > 0) {
-		_RuneCharClass *rp;
-		for (rp = rl->__charclasses; i-- > 0; rp++) {
-			if (strncmp(rp->__name, property, CHARCLASS_NAME_MAX) == 0)
-				return (rp->__mask);
-		}
-	}
-	return 0;
-}
-
-wctype_t
-wctype(const char *property)
-{
-	return wctype_l(property, __current_locale());
+	return (props[i].mask);
 }

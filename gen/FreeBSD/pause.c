@@ -10,6 +10,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -30,15 +34,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)pause.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
-
-/* For the cancelable variant, we call the cancelable sigsuspend */
-#ifdef VARIANT_CANCELABLE
-#undef __DARWIN_NON_CANCELABLE
-#define __DARWIN_NON_CANCELABLE 0
-#endif /* VARIANT_CANCELABLE */
-
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/gen/pause.c,v 1.8 2009/12/05 19:31:38 ed Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/gen/pause.c,v 1.6 2002/02/01 00:57:29 obrien Exp $");
 
 #include <signal.h>
 #include <unistd.h>
@@ -47,12 +44,9 @@ __FBSDID("$FreeBSD: src/lib/libc/gen/pause.c,v 1.8 2009/12/05 19:31:38 ed Exp $"
  * Backwards compatible pause.
  */
 int
-__pause(void)
+__pause()
 {
-	sigset_t set;
-
-	sigprocmask(0, NULL, &set);
-	return sigsuspend(&set);
+	return sigpause(sigblock(0L));
 }
 __weak_reference(__pause, pause);
 __weak_reference(__pause, _pause);

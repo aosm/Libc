@@ -39,10 +39,7 @@
 .Sh SYNOPSIS
 .Fd #include <pthread.h>
 .Ft int
-.Fo pthread_equal
-.Fa "pthread_t t1"
-.Fa "pthread_t t2"
-.Fc
+.Fn pthread_equal "pthread_t t1" "pthread_t t2"
 .Sh DESCRIPTION
 The
 .Fn pthread_equal
@@ -57,7 +54,7 @@ function will return non-zero if the thread IDs
 .Fa t1
 and
 .Fa t2
-correspond to the same thread. Otherwise, it will return zero.
+correspond to the same thread, otherwise it will return zero.
 .Sh ERRORS
 None.
 .Sh SEE ALSO

@@ -35,6 +35,7 @@
 .Nm pthread_kill
 .Nd send a signal to a specified thread
 .Sh SYNOPSIS
+.In pthread.h
 .In signal.h
 .Ft int
 .Fn pthread_kill "pthread_t thread" "int sig"
@@ -57,25 +58,17 @@ Otherwise, an error number is returned.
 .Fn pthread_kill
 will fail if:
 .Bl -tag -width Er
-.It Bq Er EINVAL
-.Fa sig
-is an invalid or unsupported signal number.
 .It Bq Er ESRCH
 .Fa thread
 is an invalid thread ID.
+.It Bq Er EINVAL
+.Fa sig
+is an invalid or unsupported signal number.
 .El
-.Sh LEGACY SYNOPSIS
-.Fd #include <pthread.h>
-.Fd #include <signal.h>
-.Pp
-The include file
-.In pthread.h
-is necessary.
 .Sh SEE ALSO
 .Xr kill 2 ,
 .Xr pthread_self 3 ,
-.Xr raise 3 ,
-.Xr compat 5
+.Xr raise 3
 .Sh STANDARDS
 .Fn pthread_kill
 conforms to ISO/IEC 9945-1:1996 (``POSIX.1'')

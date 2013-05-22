@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,9 +38,7 @@
 static char sccsid[] = "@(#)vsscanf.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdio/vsscanf.c,v 1.14 2008/04/17 22:17:54 jhb Exp $");
-
-#include "xlocale_private.h"
+__FBSDID("$FreeBSD: src/lib/libc/stdio/vsscanf.c,v 1.12 2002/10/12 16:13:41 mike Exp $");
 
 #include <stdio.h>
 #include <string.h>
@@ -57,16 +59,13 @@ eofread(cookie, buf, len)
 }
 
 int
-vsscanf_l(str, loc, fmt, ap)
+vsscanf(str, fmt, ap)
 	const char * __restrict str;
-	locale_t loc;
 	const char * __restrict fmt;
 	__va_list ap;
 {
 	FILE f;
 	struct __sFILEX ext;
-	f._extra = &ext;
-	INITEXTRA(&f);
 
 	f._file = -1;
 	f._flags = __SRD;
@@ -75,17 +74,7 @@ vsscanf_l(str, loc, fmt, ap)
 	f._read = eofread;
 	f._ub._base = NULL;
 	f._lb._base = NULL;
-	f._orientation = 0;
-	memset(&f._mbstate, 0, sizeof(mbstate_t));
-	return (__svfscanf_l(&f, loc, fmt, ap));
+	f._extra = &ext;
+	INITEXTRA(&f);
+	return (__svfscanf(&f, fmt, ap));
 }
-
-int
-vsscanf(str, fmt, ap)
-	const char * __restrict str;
-	const char * __restrict fmt;
-	__va_list ap;
-{
-	return vsscanf_l(str, __current_locale(), fmt, ap);
-}
-

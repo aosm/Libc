@@ -14,6 +14,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -35,7 +39,7 @@
 static char sccsid[] = "@(#)strstr.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/string/strnstr.c,v 1.5 2009/02/03 17:58:20 danger Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/string/strnstr.c,v 1.2 2001/11/07 19:55:16 obrien Exp $");
 
 #include <string.h>
 
@@ -44,7 +48,10 @@ __FBSDID("$FreeBSD: src/lib/libc/string/strnstr.c,v 1.5 2009/02/03 17:58:20 dang
  * first slen characters of s.
  */
 char *
-strnstr(const char *s, const char *find, size_t slen)
+strnstr(s, find, slen)
+	const char *s;
+	const char *find;
+	size_t slen;
 {
 	char c, sc;
 	size_t len;
@@ -53,7 +60,7 @@ strnstr(const char *s, const char *find, size_t slen)
 		len = strlen(find);
 		do {
 			do {
-				if (slen-- < 1 || (sc = *s++) == '\0')
+				if ((sc = *s++) == '\0' || slen-- < 1)
 					return (NULL);
 			} while (sc != c);
 			if (len > slen)

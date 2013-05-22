@@ -9,6 +9,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -26,38 +30,37 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)ctermid.3	8.1 (Berkeley) 6/4/93
-.\" $FreeBSD: src/lib/libc/gen/ctermid.3,v 1.12 2007/01/09 00:27:53 imp Exp $
+.\" $FreeBSD: src/lib/libc/gen/ctermid.3,v 1.11 2003/09/08 19:57:14 ru Exp $
 .\"
 .Dd June 4, 1993
 .Dt CTERMID 3
 .Os
 .Sh NAME
-.Nm ctermid ,
-.Nm ctermid_r
+.Nm ctermid
 .Nd generate terminal pathname
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In stdio.h
 .Ft char *
-.Fn ctermid "char *s"
+.Fn ctermid "char *buf"
 .Ft char *
-.Fn ctermid_r "char *s"
+.Fn ctermid_r "char *buf"
 .Sh DESCRIPTION
 The
 .Fn ctermid
-function generates a string that, when used as a pathname, refers to
+function generates a string, that, when used as a pathname, refers to
 the current controlling terminal of the calling process.
 .Pp
 If
-.Fa s
+.Fa buf
 is the
 .Dv NULL
 pointer, a pointer to a static area is returned.
 Otherwise, the pathname is copied into the memory referenced by
-.Fa s .
+.Fa buf .
 The argument
-.Fa s
+.Fa buf
 is assumed to be at least
 .Dv L_ctermid
 (as defined in the include
@@ -69,9 +72,9 @@ The
 .Fn ctermid_r
 function
 provides the same functionality as
-.Fn ctermid ,
+.Fn ctermid
 except that if
-.Fa s
+.Fa buf
 is a
 .Dv NULL
 pointer,

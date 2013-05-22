@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,7 +38,7 @@
 static char sccsid[] = "@(#)bt_open.c	8.10 (Berkeley) 8/17/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/db/btree/bt_open.c,v 1.17 2009/03/28 05:57:27 delphij Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/db/btree/bt_open.c,v 1.11 2002/03/22 21:52:01 obrien Exp $");
 
 /*
  * Implementation of btree access method for 4.4BSD.
@@ -87,7 +91,10 @@ static int tmp(void);
  *
  */
 DB *
-__bt_open(const char *fname, int flags, int mode, const BTREEINFO *openinfo, int dflags)
+__bt_open(fname, flags, mode, openinfo, dflags)
+	const char *fname;
+	int flags, mode, dflags;
+	const BTREEINFO *openinfo;
 {
 	struct stat sb;
 	BTMETA m;
@@ -96,7 +103,7 @@ __bt_open(const char *fname, int flags, int mode, const BTREEINFO *openinfo, int
 	DB *dbp;
 	pgno_t ncache;
 	ssize_t nr;
-	int machine_lorder, saved_errno;
+	int machine_lorder;
 
 	t = NULL;
 
@@ -156,8 +163,9 @@ __bt_open(const char *fname, int flags, int mode, const BTREEINFO *openinfo, int
 		goto einval;
 
 	/* Allocate and initialize DB and BTREE structures. */
-	if ((t = (BTREE *)calloc(1, sizeof(BTREE))) == NULL)
+	if ((t = (BTREE *)malloc(sizeof(BTREE))) == NULL)
 		goto err;
+	memset(t, 0, sizeof(BTREE));
 	t->bt_fd = -1;			/* Don't close unopened fd on error. */
 	t->bt_lorder = b.lorder;
 	t->bt_order = NOT;
@@ -165,8 +173,9 @@ __bt_open(const char *fname, int flags, int mode, const BTREEINFO *openinfo, int
 	t->bt_pfx = b.prefix;
 	t->bt_rfd = -1;
 
-	if ((t->bt_dbp = dbp = (DB *)calloc(1, sizeof(DB))) == NULL)
+	if ((t->bt_dbp = dbp = (DB *)malloc(sizeof(DB))) == NULL)
 		goto err;
+	memset(t->bt_dbp, 0, sizeof(DB));
 	if (t->bt_lorder != machine_lorder)
 		F_SET(t, B_NEEDSWAP);
 
@@ -195,7 +204,7 @@ __bt_open(const char *fname, int flags, int mode, const BTREEINFO *openinfo, int
 		default:
 			goto einval;
 		}
-
+		
 		if ((t->bt_fd = _open(fname, flags, mode)) < 0)
 			goto err;
 
@@ -325,15 +334,13 @@ einval:	errno = EINVAL;
 eftype:	errno = EFTYPE;
 	goto err;
 
-err:	saved_errno = errno;
-	if (t) {
+err:	if (t) {
 		if (t->bt_dbp)
 			free(t->bt_dbp);
 		if (t->bt_fd != -1)
 			(void)_close(t->bt_fd);
 		free(t);
 	}
-	errno = saved_errno;
 	return (NULL);
 }
 
@@ -347,7 +354,8 @@ err:	saved_errno = errno;
  *	RET_ERROR, RET_SUCCESS
  */
 static int
-nroot(BTREE *t)
+nroot(t)
+	BTREE *t;
 {
 	PAGE *meta, *root;
 	pgno_t npg;
@@ -380,21 +388,17 @@ nroot(BTREE *t)
 }
 
 static int
-tmp(void)
+tmp()
 {
 	sigset_t set, oset;
-	int fd, len;
+	int fd;
 	char *envtmp = NULL;
 	char path[MAXPATHLEN];
 
 	if (issetugid() == 0)
 		envtmp = getenv("TMPDIR");
-	len = snprintf(path,
+	(void)snprintf(path,
 	    sizeof(path), "%s/bt.XXXXXXXXXX", envtmp ? envtmp : "/tmp");
-	if (len < 0 || len >= (int)sizeof(path)) {
-		errno = ENAMETOOLONG;
-		return(-1);
-	}
 
 	(void)sigfillset(&set);
 	(void)_sigprocmask(SIG_BLOCK, &set, &oset);
@@ -405,7 +409,7 @@ tmp(void)
 }
 
 static int
-byteorder(void)
+byteorder()
 {
 	u_int32_t x;
 	u_char *p;
@@ -423,7 +427,8 @@ byteorder(void)
 }
 
 int
-__bt_fd(const DB *dbp)
+__bt_fd(dbp)
+        const DB *dbp;
 {
 	BTREE *t;
 

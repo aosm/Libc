@@ -49,8 +49,7 @@ typedef struct _xlocale *		locale_t;
 #define LC_NUMERIC_MASK			(1 << 4)
 #define LC_TIME_MASK			(1 << 5)
 
-#define _LC_NUM_MASK			6
-#define _LC_LAST_MASK			(1 << (_LC_NUM_MASK - 1))
+#define _LC_LAST_MASK			(1 << (6 - 1))
 
 #define LC_GLOBAL_LOCALE		((locale_t)-1)
 
@@ -73,15 +72,12 @@ __const char *	querylocale(int, locale_t);
 locale_t	uselocale(locale_t);
 __END_DECLS
 
-//Begin-Libc
-#ifndef __DARWIN_XLOCALE_PRIVATE
-//End-Libc
-#ifdef _CTYPE_H_
-#include <xlocale/_ctype.h>
-#endif /* _CTYPE_H_ */
 #ifdef __WCTYPE_H_
 #include <xlocale/__wctype.h>
 #endif /* __WCTYPE_H_ */
+#ifdef _CTYPE_H_
+#include <xlocale/_ctype.h>
+#endif /* _CTYPE_H_ */
 #ifdef _INTTYPES_H_
 #include <xlocale/_inttypes.h>
 #endif /* _INTTYPES_H_ */
@@ -91,9 +87,6 @@ __END_DECLS
 #ifdef _MONETARY_H_
 #include <xlocale/_monetary.h>
 #endif /* _MONETARY_H_ */
-#ifdef _REGEX_H_
-#include <xlocale/_regex.h>
-#endif /* _REGEX_H_ */
 #ifdef _STDIO_H_
 #include <xlocale/_stdio.h>
 #endif /* _STDIO_H_ */
@@ -112,8 +105,5 @@ __END_DECLS
 #ifdef _WCTYPE_H_
 #include <xlocale/_wctype.h>
 #endif /* _WCTYPE_H_ */
-//Begin-Libc
-#endif /* __DARWIN_XLOCALE_PRIVATE */
-//End-Libc
 
 #endif /* _XLOCALE_H_ */

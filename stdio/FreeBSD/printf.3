@@ -13,6 +13,10 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -30,14 +34,14 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)printf.3	8.1 (Berkeley) 6/4/93
-.\" $FreeBSD: src/lib/libc/stdio/printf.3,v 1.64 2009/12/02 07:51:25 brueffer Exp $
+.\" $FreeBSD: src/lib/libc/stdio/printf.3,v 1.58 2004/10/16 16:00:01 stefanf Exp $
 .\"
-.Dd December 2, 2009
+.Dd October 16, 2004
 .Dt PRINTF 3
 .Os
 .Sh NAME
-.Nm printf , fprintf , sprintf , snprintf , asprintf , dprintf ,
-.Nm vprintf , vfprintf, vsprintf , vsnprintf , vasprintf, vdprintf
+.Nm printf , fprintf , sprintf , snprintf , asprintf ,
+.Nm vprintf , vfprintf, vsprintf , vsnprintf , vasprintf
 .Nd formatted output conversion
 .Sh LIBRARY
 .Lb libc
@@ -53,8 +57,6 @@
 .Fn snprintf "char * restrict str" "size_t size" "const char * restrict format" ...
 .Ft int
 .Fn asprintf "char **ret" "const char *format" ...
-.Ft int
-.Fn dprintf "int fd" "const char * restrict format" ...
 .In stdarg.h
 .Ft int
 .Fn vprintf "const char * restrict format" "va_list ap"
@@ -66,8 +68,6 @@
 .Fn vsnprintf "char * restrict str" "size_t size" "const char * restrict format" "va_list ap"
 .Ft int
 .Fn vasprintf "char **ret" "const char *format" "va_list ap"
-.Ft int
-.Fn vdprintf "int fd" "const char * restrict format" "va_list ap"
 .Sh DESCRIPTION
 The
 .Fn printf
@@ -87,29 +87,19 @@ and
 .Fn vfprintf
 write output to the given output
 .Fa stream ;
-.Fn dprintf
-and
-.Fn vdprintf
-write output to the given file descriptor;
 .Fn sprintf ,
 .Fn snprintf ,
 .Fn vsprintf ,
 and
 .Fn vsnprintf
 write to the character string
-.Fa s ;
+.Fa str ;
 and
 .Fn asprintf
 and
 .Fn vasprintf
 dynamically allocate a new string with
 .Xr malloc 3 .
-.Pp
-Extended locale versions of these functions are documented in
-.Xr printf_l 3 .
-See
-.Xr xlocale 3
-for more information.
 .Pp
 These functions write the output under the control of a
 .Fa format
@@ -127,7 +117,7 @@ except for
 and
 .Fn vsnprintf ,
 which return the number of characters that would have been printed if the
-.Fa n
+.Fa size
 were unlimited
 (again, not including the final
 .Ql \e0 ) .
@@ -159,14 +149,14 @@ and
 .Fn vsnprintf
 functions
 will write at most
-.Fa n Ns \-1
+.Fa size Ns \-1
 of the characters printed into the output string
 (the
-.Fa n Ns \'th
+.Fa size Ns 'th
 character then gets the terminating
 .Ql \e0 ) ;
 if the return value is greater than or equal to the
-.Fa n
+.Fa size
 argument, the string was too short
 and some of the printed characters were discarded.
 The output is always null-terminated.
@@ -177,11 +167,7 @@ and
 .Fn vsprintf
 functions
 effectively assume an infinite
-.Fa n .
-.Pp
-For those routines that write to a user-provided character string,
-that string and the format strings should not overlap, as the
-behavior is undefined.
+.Fa size .
 .Pp
 The format string is composed of zero or more directives:
 ordinary
@@ -225,7 +211,8 @@ conversions, this option has no effect.
 For
 .Cm o
 conversions, the precision of the number is increased to force the first
-character of the output string to a zero.
+character of the output string to a zero (except if a zero value is printed
+with an explicit precision of zero).
 For
 .Cm x
 and
@@ -299,20 +286,6 @@ should be grouped and separated by thousands using
 the non-monetary separator returned by
 .Xr localeconv 3 .
 .El
-.It
-An optional separator character (
-.Cm \ , | \;  | \ : | _
-) used for separating multiple values when printing an AltiVec or SSE vector,
-or other multi-value unit.
-.Pp
-NOTE: This is an extension to the
-.Fn printf
-specification.
-Behaviour of these values for
-.Fn printf 
-is only defined for operating systems conforming to the 
-AltiVec Technology Programming Interface Manual.
-(At time of writing this includes only Mac OS X 10.2 and later.)
 .It
 An optional decimal digit string specifying a minimum field width.
 If the converted value has fewer characters than the field width, it will
@@ -405,34 +378,6 @@ conversion:
 .Bl -column ".Sy Modifier" ".Vt wint_t" ".Vt wchar_t *"
 .It Sy Modifier Ta Cm c Ta Cm s
 .It Cm l No (ell) Ta Vt wint_t Ta Vt "wchar_t *"
-.El
-.Pp
-The AltiVec Technology Programming Interface Manual also defines five additional length modifiers
-which can be used (in place of the conventional length modifiers) for the printing of AltiVec or SSE vectors:
-.Bl -tag -compact
-.It Cm v
-Treat the argument as a vector value, unit length will be determined by the conversion
-specifier (default = 16 8-bit units for all integer conversions, 
-4 32-bit units for floating point conversions).
-.It Cm vh, hv
-Treat the argument as a vector of 8 16-bit units.
-.It Cm vl, lv
-Treat the argument as a vector of 4 32-bit units.
-.El
-.Pp
-NOTE: The vector length specifiers are extensions to the
-.Fn printf
-specification.
-Behaviour of these values for
-.Fn printf 
-is only defined for operating systems conforming to the 
-AltiVec Technology Programming Interface Manual.
-(At time of writing this includes only Mac OS X 10.2 and later.)
-.Pp
-As a further extension, for SSE2 64-bit units:
-.Bl -tag -compact
-.It Cm vll, llv
-Treat the argument as a vector of 2 64-bit units.
 .El
 .It
 A character that specifies the type of conversion to be applied.
@@ -608,7 +553,7 @@ to separate the mantissa and exponent.
 Note that there may be multiple valid ways to represent floating-point
 numbers in this hexadecimal format.
 For example,
-.Li 0x1.92p+1 , 0x3.24p+0 , 0x6.48p-1 ,
+.Li 0x3.24p+0 , 0x6.48p-1
 and
 .Li 0xc.9p-2
 are all equivalent.
@@ -830,7 +775,69 @@ for later interpolation by
 Always use the proper secure idiom:
 .Pp
 .Dl "snprintf(buffer, sizeof(buffer), \*q%s\*q, string);"
-.Sh COMPATIBILITY
+.Sh ERRORS
+In addition to the errors documented for the
+.Xr write 2
+system call, the
+.Fn printf
+family of functions may fail if:
+.Bl -tag -width Er
+.It Bq Er EILSEQ
+An invalid wide character code was encountered.
+.It Bq Er ENOMEM
+Insufficient storage space is available.
+.El
+.Sh SEE ALSO
+.Xr printf 1 ,
+.Xr fmtcheck 3 ,
+.Xr scanf 3 ,
+.Xr setlocale 3 ,
+.Xr wprintf 3
+.Rs
+.%T "The FreeBSD Security Architecture"
+.Re
+(See
+.Pa "/usr/share/doc/{to be determined}" . )
+.Sh STANDARDS
+Subject to the caveats noted in the
+.Sx BUGS
+section below, the
+.Fn fprintf ,
+.Fn printf ,
+.Fn sprintf ,
+.Fn vprintf ,
+.Fn vfprintf ,
+and
+.Fn vsprintf
+functions
+conform to
+.St -ansiC
+and
+.St -isoC-99 .
+With the same reservation, the
+.Fn snprintf
+and
+.Fn vsnprintf
+functions conform to
+.St -isoC-99 .
+.Sh HISTORY
+The functions
+.Fn asprintf
+and
+.Fn vasprintf
+first appeared in the
+.Tn GNU C
+library.
+These were implemented by
+.An Peter Wemm Aq peter@FreeBSD.org
+in
+.Fx 2.2 ,
+but were later replaced with a different implementation
+from
+.An Todd C. Miller Aq Todd.Miller@courtesan.com
+for
+.Ox 2.3 .
+.Sh BUGS
 The conversion formats
 .Cm \&%D , \&%O ,
 and
@@ -853,78 +860,7 @@ nonsensical combinations such as
 .Cm %Ld ,
 are not standard; such combinations
 should be avoided.
-.Sh ERRORS
-In addition to the errors documented for the
-.Xr write 2
-system call, the
-.Fn printf
-family of functions may fail if:
-.Bl -tag -width Er
-.It Bq Er EILSEQ
-An invalid wide character code was encountered.
-.It Bq Er ENOMEM
-Insufficient storage space is available.
-.El
-.Sh SEE ALSO
-.Xr printf 1 ,
-.Xr printf_l 3 ,
-.Xr fmtcheck 3 ,
-.Xr scanf 3 ,
-.Xr setlocale 3 ,
-.Xr stdarg 3 ,
-.Xr wprintf 3
-.Sh STANDARDS
-Subject to the caveats noted in the
-.Sx BUGS
-section below, the
-.Fn fprintf ,
-.Fn printf ,
-.Fn sprintf ,
-.Fn vprintf ,
-.Fn vfprintf ,
-and
-.Fn vsprintf
-functions
-conform to
-.St -ansiC
-and
-.St -isoC-99 .
-With the same reservation, the
-.Fn snprintf
-and
-.Fn vsnprintf
-functions conform to
-.St -isoC-99 ,
-while
-.Fn dprintf
-and
-.Fn vdprintf
-conform to
-.St -p1003.1-2008 .
-.Sh HISTORY
-The functions
-.Fn asprintf
-and
-.Fn vasprintf
-first appeared in the
-.Tn GNU C
-library.
-These were implemented by
-.An Peter Wemm Aq peter@FreeBSD.org
-in
-.Fx 2.2 ,
-but were later replaced with a different implementation
-from
-.An Todd C. Miller Aq Todd.Miller@courtesan.com
-for
-.Ox 2.3 .
-The
-.Fn dprintf
-and
-.Fn vdprintf
-functions were added in
-.Fx 8.0 .
-.Sh BUGS
+.Pp
 The
 .Nm
 family of functions do not correctly handle multibyte characters in the

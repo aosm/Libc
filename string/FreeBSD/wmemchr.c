@@ -32,12 +32,15 @@
 __RCSID("$NetBSD: wmemchr.c,v 1.1 2000/12/23 23:14:37 itojun Exp $");
 #endif /* LIBC_SCCS and not lint */
 #endif
-__FBSDID("$FreeBSD: src/lib/libc/string/wmemchr.c,v 1.7 2009/02/03 17:58:20 danger Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/string/wmemchr.c,v 1.6 2002/09/21 00:29:23 tjr Exp $");
 
 #include <wchar.h>
 
 wchar_t	*
-wmemchr(const wchar_t *s, wchar_t c, size_t n)
+wmemchr(s, c, n)
+	const wchar_t *s;
+	wchar_t c;
+	size_t n;
 {
 	size_t i;
 

@@ -13,6 +13,10 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *	This product includes software developed by the University of
+ *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -34,41 +38,27 @@
 static char sccsid[] = "@(#)tmpnam.c	8.3 (Berkeley) 3/28/94";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: src/lib/libc/stdio/tmpnam.c,v 1.6 2007/01/09 00:28:07 imp Exp $");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/tmpnam.c,v 1.5 2002/03/22 21:53:04 obrien Exp $");
 
 #include <sys/types.h>
 
 #include <stdio.h>
 #include <unistd.h>
-#include <pthread.h>
-#include <stdlib.h>
 
 __warn_references(tmpnam,
     "warning: tmpnam() possibly used unsafely; consider using mkstemp()");
 
 extern char *_mktemp(char *);
 
-static char *tmpnam_buf = NULL;
-static pthread_once_t tmpnam_buf_control = PTHREAD_ONCE_INIT;
-
-static void tmpnam_buf_allocate(void)
-{
-	tmpnam_buf = malloc(L_tmpnam);
-}
-
 char *
 tmpnam(s)
 	char *s;
 {
 	static u_long tmpcount;
+	static char buf[L_tmpnam];
 
-	if (s == NULL) {
-		if (pthread_once(&tmpnam_buf_control, tmpnam_buf_allocate)
-			|| !tmpnam_buf) {
-			return NULL;
-		}
-		s = tmpnam_buf;
-	}
+	if (s == NULL)
+		s = buf;
 	(void)snprintf(s, L_tmpnam, "%stmp.%lu.XXXXXX", P_tmpdir, tmpcount);
 	++tmpcount;
 	return (_mktemp(s));

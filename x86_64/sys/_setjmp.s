@@ -70,8 +70,14 @@ LEAF(__setjmp, 0)
 	movq	(%rsp), %rax
 	movq	%rax, JB_RIP(%rdi)
 	// RSP is set to the frame return address plus 8
-	leaq	8(%rsp), %rax
+	movq	%rsp, %rax
+	addq	$8, %rax
 	movq	%rax, JB_RSP(%rdi)
+
+	// save rflags - you can't use movq
+	pushfq
+	popq	%rax
+	movq	%rax, JB_RFLAGS(%rdi)
 
 	// save fp control word
 	fnstcw	JB_FPCONTROL(%rdi)
@@ -80,18 +86,19 @@ LEAF(__setjmp, 0)
 	stmxcsr	JB_MXCSR(%rdi)
 
 	// return 0
-	xorl	%eax, %eax
+	xorq	%rax, %rax
 	ret
 
 
 LEAF(__longjmp, 0)
-	fninit				// Clear all FP exceptions
+	fninit			// reset FP coprocessor
+
 	// %rdi is a jmp_buf (struct sigcontext *)
-	// %esi is the return value
-	movl	%esi, %eax
-	testl	%esi, %esi
+	// %rsi is the return value
+	movq	%rsi, %rax
+	testq	%rax, %rax
 	jnz	1f
-	incl	%eax
+	addq	$1, %rax
 
 	// general registers
 1:
@@ -109,8 +116,8 @@ LEAF(__longjmp, 0)
 	// restore MXCSR
 	ldmxcsr	JB_MXCSR(%rdi)
 
-
-	// Make sure DF is reset
-	cld
+	// rflags
+	pushq	JB_RFLAGS(%rdi)
+	popfq
 
 	jmp		*JB_RIP(%rdi)
